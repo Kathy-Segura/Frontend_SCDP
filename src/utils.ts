@@ -1,4 +1,4 @@
-import type { Dish, Ingredient } from "../types";
+import type { Dish, Ingredient } from "./types";
 
 export function fmt(n: number) { return n.toFixed(2); }
 export function cs(n: number) { return `C$ ${fmt(n)}`; }

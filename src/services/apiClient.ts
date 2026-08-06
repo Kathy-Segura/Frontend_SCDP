@@ -4,8 +4,8 @@
 // se adjunte automáticamente y los errores lleguen en un formato consistente,
 // nunca JSX ni React Context (eso vive en /sesion).
 
-const RAW_BASE_URL = import.meta.env.VITE_API_URL;
-export const API_BASE_URL = (RAW_BASE_URL || "http://localhost:5173/api").replace(/\/+$/, "");
+const RAW_BASE_URL = import.meta.env.VITE_API_URL;  
+export const API_BASE_URL = (RAW_BASE_URL || "https://backend-scdp.onrender.com/api").replace(/\/+$/, "");
 
 const TOKEN_KEY = "cdp_token";
 const USER_KEY = "cdp_usuario";
