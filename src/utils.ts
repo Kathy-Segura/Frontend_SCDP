@@ -1,9 +1,73 @@
 import type { Dish, Ingredient } from "./types";
+import type { UnidadMedida } from "./services/catalogos.services";
 
 export function fmt(n: number) { return n.toFixed(2); }
 export function cs(n: number) { return `C$ ${fmt(n)}`; }
 export function clsx(...c: (string | boolean | undefined)[]) { return c.filter(Boolean).join(" "); }
 
+// ---------------------------------------------------------------------------
+// Conversion de unidades
+// ---------------------------------------------------------------------------
+// Antes esto era una tabla fija (UNIT_CONVERSIONS) inventada en el front.
+// Ahora se apoya en el catalogo real de unidades_medida que trae la API
+// (incluye factor_conversion_base), cacheado aca en memoria una sola vez
+// despues del login (ver App.tsx -> setUnidadesCatalogo).
+//
+// Las firmas de convertToBaseUnit/getCompatibleUnits/dishCost se mantienen
+// IGUAL que antes a proposito, para no tener que tocar ReportsPage,
+// ChartsPage, DishEditDrawer, DishIngredientsModal, etc. en esta parte.
+//
+// IMPORTANTE: esto sigue siendo solo un ESTIMADO para la pantalla. El
+// calculo real y definitivo de costos lo hace el backend via
+// POST /api/ingredients/calculate-cost y POST /api/dishes/calculate-cost
+// (pendiente de conectar en las partes de Ingredientes/Platillos).
+
+let unidadesCatalogo: UnidadMedida[] = [];
+
+export function setUnidadesCatalogo(unidades: UnidadMedida[]) {
+  unidadesCatalogo = unidades;
+}
+
+function buscarUnidad(nombre: string): UnidadMedida | undefined {
+  return unidadesCatalogo.find(
+    (u) => u.nombre_unidad === nombre || u.codigo_unidad === nombre
+  );
+}
+
+export function convertToBaseUnit(quantity: number, fromUnit: string, toUnit: string): number {
+  if (fromUnit === toUnit) return quantity;
+
+  const desde = buscarUnidad(fromUnit);
+  const hacia = buscarUnidad(toUnit);
+
+  // Si el catalogo todavia no cargo, o alguna unidad no se encontro, no
+  // inventamos un factor: devolvemos la cantidad tal cual (mismo
+  // comportamiento de fallback que tenia la version anterior).
+  if (!desde || !hacia || !desde.factor_conversion_base || !hacia.factor_conversion_base) {
+    return quantity;
+  }
+
+  const cantidadEnUnidadBase = quantity * desde.factor_conversion_base;
+  return cantidadEnUnidadBase / hacia.factor_conversion_base;
+}
+
+export function getCompatibleUnits(baseUnit: string): string[] {
+  const unidadActual = buscarUnidad(baseUnit);
+
+  // Catalogo aun no cargado: como antes, solo devolvemos la unidad misma
+  // para no romper el render mientras llega la respuesta de la API.
+  if (!unidadActual) return [baseUnit];
+
+  if (unidadActual.tipo_medida === "conteo") return [unidadActual.nombre_unidad];
+
+  return unidadesCatalogo
+    .filter((u) => u.tipo_medida === unidadActual.tipo_medida)
+    .map((u) => u.nombre_unidad);
+}
+
+// ---------------------------------------------------------------------------
+// Costo de un platillo (sin cambios en la firma)
+// ---------------------------------------------------------------------------
 export function dishCost(dish: Dish, ingredients: Ingredient[]) {
   return (dish.ingredients ?? []).reduce((s, di) => {
     const ing = ingredients.find((i) => i.id === di.ingredientId);
@@ -11,35 +75,4 @@ export function dishCost(dish: Dish, ingredients: Ingredient[]) {
     const quantityInBaseUnit = convertToBaseUnit(di.quantity, di.selectedUnit || ing.unit, ing.unit);
     return s + (ing.costPerUnit * quantityInBaseUnit);
   }, 0);
-}
-
-const UNIT_CONVERSIONS: Record<string, Record<string, number>> = {
-  'Gramos':        { 'Gramos': 1, 'Kilogramos': 0.001, 'Onzas': 0.03527, 'Libras': 0.00220462 },
-  'Kilogramos':    { 'Kilogramos': 1, 'Gramos': 1000, 'Onzas': 35.274, 'Libras': 2.20462 },
-  'Onzas':         { 'Onzas': 1, 'Gramos': 28.3495, 'Kilogramos': 0.0283495, 'Libras': 0.0625 },
-  'Libras':        { 'Libras': 1, 'Gramos': 453.592, 'Kilogramos': 0.453592, 'Onzas': 16 },
-  'Mililitros':    { 'Mililitros': 1, 'Litros': 0.001, 'Onzas fluidas': 0.033814, 'Galon': 0.000264172 },
-  'Litros':        { 'Litros': 1, 'Mililitros': 1000, 'Onzas fluidas': 33.814, 'Galon': 0.264172 },
-  'Onzas fluidas': { 'Onzas fluidas': 1, 'Mililitros': 29.5735, 'Litros': 0.0295735, 'Galon': 0.0078125 },
-  'Galon':         { 'Galon': 1, 'Mililitros': 3785.41, 'Litros': 3.78541, 'Onzas fluidas': 128 },
-  'Unidad':        { 'Unidad': 1 },
-  'Caja':          { 'Caja': 1 },
-  'Bolsa':         { 'Bolsa': 1 },
-};
-
-export function convertToBaseUnit(quantity: number, fromUnit: string, toUnit: string): number {
-  if (fromUnit === toUnit) return quantity;
-  const conversions = UNIT_CONVERSIONS[fromUnit];
-  if (!conversions || !conversions[toUnit]) return quantity;
-  return quantity * conversions[toUnit];
-}
-
-export function getCompatibleUnits(baseUnit: string): string[] {
-  if (['Gramos', 'Kilogramos', 'Onzas', 'Libras'].includes(baseUnit)) {
-    return ['Gramos', 'Kilogramos', 'Onzas', 'Libras'];
-  }
-  if (['Mililitros', 'Litros', 'Onzas fluidas', 'Galon'].includes(baseUnit)) {
-    return ['Mililitros', 'Litros', 'Onzas fluidas', 'Galon'];
-  }
-  return [baseUnit];
 }
