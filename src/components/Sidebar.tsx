@@ -44,8 +44,8 @@ export function Sidebar({
             <UtensilsCrossed size={18} color="#fff" />
           </div>
           <div>
-            <p className="text-[15px] font-bold leading-tight" style={{ color: "#F9FAFB" }}>CPD</p>
-            <p className="text-[11px] leading-tight mt-0.5" style={{ color: SB.muted }}>Gestión de cocina</p>
+            <p className="text-[15px] font-bold leading-tight" style={{ color: "#F9FAFB" }}>CDP</p>
+            <p className="text-[11px] leading-tight mt-0.5" style={{ color: SB.muted }}>Gestión de insumos</p>
           </div>
         </div>
       </div>

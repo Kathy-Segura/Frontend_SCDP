@@ -101,10 +101,10 @@ function AppContent() {
       <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <div className={page === "reports" ? "flex-1 min-h-0 flex flex-col" : "flex-1 overflow-y-auto"}>
           {page === "form-ingredients" && (
-            <IngredientFormPage/>
+            <IngredientFormPage/> //Eliminar props: onAddIngredient={addIngredient} ingredients={ingredients} 
           )}
           {page === "form-dishes" && (
-            <DishFormPage onAddDish={addDish} ingredients={ingredients} dishes={dishes} />
+            <DishFormPage/>
           )}
           {page === "ingredients" && (
             <IngredientsPage ingredients={ingredients} onUpdate={updateIngredient} onDelete={deleteIngredient} />

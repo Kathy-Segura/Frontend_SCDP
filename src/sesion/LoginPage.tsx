@@ -77,7 +77,7 @@ export function LoginPage() {
           >
             <UtensilsCrossed size={20} color="#fff" />
           </div>
-          <h1 className="text-lg font-bold text-foreground">CPD - Costeo BC</h1>
+          <h1 className="text-lg font-bold text-foreground">CDP - Centro de producción</h1>
           <p className="text-sm text-muted-foreground mt-1">Inicia sesion para continuar</p>
         </div>
 
