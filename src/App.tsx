@@ -5,7 +5,7 @@ import { Sidebar } from "./components/Sidebar";
 import { LoginPage } from "./sesion/LoginPage";
 import { IngredientFormPage } from "./components/IngredientFormPage";
 import { DishFormPage } from "./components/DishFormPage";
-import { IngredientsPage } from "./components/IngredientsPage";
+import { IngredientsPageContainer } from "./components/IngredientsPageContainer";
 import { DishesPage } from "./components/DishesPage";
 import { ChartsPage } from "./components/ChartsPage";
 import { ReportsPage } from "./components/ReportsPage";
@@ -42,14 +42,8 @@ function AppContent() {
   function addDish(data: Omit<Dish, "id">) {
     setDishes((p) => [...p, { id: nextDishId++, ...data }]);
   }
-  function updateIngredient(updated: Ingredient) {
-    setIngredients((p) => p.map((i) => i.id === updated.id ? updated : i));
-  }
   function updateDish(updated: Dish) {
     setDishes((p) => p.map((d) => d.id === updated.id ? updated : d));
-  }
-  function deleteIngredient(id: number) {
-    setIngredients((p) => p.filter((i) => i.id !== id));
   }
   function deleteDish(id: number) {
     setDishes((p) => p.filter((d) => d.id !== id));
@@ -107,7 +101,7 @@ function AppContent() {
             <DishFormPage/>
           )}
           {page === "ingredients" && (
-            <IngredientsPage ingredients={ingredients} onUpdate={updateIngredient} onDelete={deleteIngredient} />
+            <IngredientsPageContainer />
           )}
           {page === "dishes" && (
             <DishesPage dishes={dishes} ingredients={ingredients} onDelete={deleteDish} onUpdate={updateDish} />

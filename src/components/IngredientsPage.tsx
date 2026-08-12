@@ -1,17 +1,21 @@
 import { useState } from "react";
 import { AlertTriangle, Pencil, Trash2, ChevronLeft, ChevronRight, ArrowDownRightFromCircle } from "lucide-react";
 import type { Ingredient } from "../types";
+import type { Categoria, UnidadMedida } from "../services/catalogos.services";
 import { ING_CATEGORIES, PAGE_SIZE } from "../constants";
 import { MONO } from "../styles/shared";
 import { cs, clsx } from "../utils";
 import { IngredientEditModal } from "./IngredientEditModal";
 
 export function IngredientsPage({
-  ingredients, onUpdate, onDelete,
+  ingredients, categorias, unidades, onUpdate, onDelete, onReactivate,
 }: {
   ingredients: Ingredient[];
+  categorias: Categoria[];
+  unidades: UnidadMedida[];
   onUpdate: (updated: Ingredient) => void;
   onDelete: (id: number) => void;
+  onReactivate: (id: number) => void;
 }) {
   const [editing, setEditing] = useState<Ingredient | null>(null);
   const [search, setSearch] = useState("");
@@ -125,13 +129,15 @@ export function IngredientsPage({
                       >
                         <Trash2 size={13} />
                       </button>
-                      <button
-                        title="Reactivar ingrediente"
-                        onClick={() => setEditing(ing)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
-                      >
-                        <ArrowDownRightFromCircle size={12} /> Activar
-                      </button>
+                      {!ing.active && (
+                        <button
+                          title="Reactivar ingrediente"
+                          onClick={() => onReactivate(ing.id)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                        >
+                          <ArrowDownRightFromCircle size={12} /> Activar
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -185,6 +191,8 @@ export function IngredientsPage({
       {editing && (
         <IngredientEditModal
           ingredient={editing}
+          categorias={categorias}
+          unidades={unidades}
           onSave={(updated) => { onUpdate(updated); setEditing(null); }}
           onClose={() => setEditing(null)}
         />

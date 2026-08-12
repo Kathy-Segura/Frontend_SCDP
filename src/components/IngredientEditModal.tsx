@@ -1,22 +1,38 @@
 import { useState } from "react";
 import { ShoppingBasket, X, Check } from "lucide-react";
 import type { Ingredient } from "../types";
-import { ING_CATEGORIES } from "../constants";
+import type { Categoria, UnidadMedida } from "../services/catalogos.services";
 import { inputCls, selectCls, labelCls, MONO } from "../styles/shared";
 import { cs } from "../utils";
 
 export function IngredientEditModal({
-  ingredient, onSave, onClose,
+  ingredient, categorias, unidades, onSave, onClose,
 }: {
   ingredient: Ingredient;
+  /** Catálogo real (desde catalogos.services.listarCategoriasIngrediente). */
+  categorias: Categoria[];
+  /** Catálogo real (desde catalogos.services.listarUnidadesMedida). Se filtra
+   *  a unidades del mismo tipo_medida que la unidad actual, porque
+   *  sp_actualizar_ingrediente rechaza cambios entre grupos físicos distintos
+   *  (peso <-> volumen, o cualquier tipo 'conteo'). */
+  unidades: UnidadMedida[];
   onSave: (updated: Ingredient) => void;
   onClose: () => void;
 }) {
   const [form, setForm] = useState({ ...ingredient });
 
+  const unidadActual = unidades.find((u) => u.id === ingredient.unitId);
+  const unidadesCompatibles = unidadActual
+    ? unidades.filter((u) => u.tipo_medida === unidadActual.tipo_medida)
+    : unidades;
+
   function save() {
     if (!form.name.trim()) return;
-    onSave({ ...form, costPerUnit: Number(form.costPerUnit) || 0, stock: Number(form.stock) || 0 });
+    onSave({
+      ...form,
+      costPerUnit: Number(form.costPerUnit) || 0,
+      stock: Number(form.stock) || 0,
+    });
   }
 
   return (
@@ -50,14 +66,34 @@ export function IngredientEditModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Unidad</label>
-              <select className={selectCls} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
-                {["Gramos", "Kilogramos", "Onzas", "Libras", "Mililitros", "Litros", "Onzas fluidas", "Galon", "Unidad", "Caja", "Bolsa"].map((u) => <option key={u}>{u}</option>)}
+              <select
+                className={selectCls}
+                value={form.unitId ?? ""}
+                onChange={(e) => {
+                  const u = unidades.find((x) => x.id === Number(e.target.value));
+                  if (!u) return;
+                  setForm({ ...form, unitId: u.id, unit: u.nombre_unidad });
+                }}
+              >
+                {unidadesCompatibles.map((u) => (
+                  <option key={u.id} value={u.id}>{u.nombre_unidad}</option>
+                ))}
               </select>
             </div>
             <div>
               <label className={labelCls}>Categoría</label>
-              <select className={selectCls} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                {ING_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              <select
+                className={selectCls}
+                value={form.categoryId ?? ""}
+                onChange={(e) => {
+                  const c = categorias.find((x) => x.id === Number(e.target.value));
+                  if (!c) return;
+                  setForm({ ...form, categoryId: c.id, category: c.nombre_categoria });
+                }}
+              >
+                {categorias.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nombre_categoria}</option>
+                ))}
               </select>
             </div>
           </div>
