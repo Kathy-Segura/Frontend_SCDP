@@ -3,10 +3,10 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { Package, ChefHat, TrendingUp, AlertTriangle } from "lucide-react";
-import type { Ingredient, Dish } from "../types";
 import { CHART_COLORS } from "../constants";
 import { MONO } from "../styles/shared";
-import { fmt, cs, dishCost } from "../utils";
+import { cs } from "../utils";
+import type { ResumenDashboard } from "../services/dashboard.services";
 
 const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
@@ -22,27 +22,26 @@ const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: 
   );
 };
 
-export function ChartsPage({ ingredients, dishes }: { ingredients: Ingredient[]; dishes: Dish[] }) {
-  const stockData = [...ingredients].sort((a, b) => b.stock - a.stock).slice(0, 10)
-    .map((i) => ({ name: i.name.length > 13 ? i.name.slice(0, 12) + "…" : i.name, stock: i.stock }));
-
-  const costData = [...ingredients].sort((a, b) => b.costPerUnit - a.costPerUnit).slice(0, 8)
-    .map((i) => ({ name: i.name.length > 13 ? i.name.slice(0, 12) + "…" : i.name, costo: i.costPerUnit }));
-
-  const categoryMap: Record<string, number> = {};
-  ingredients.forEach((i) => { categoryMap[i.category] = (categoryMap[i.category] || 0) + i.stock; });
-  const pieData = Object.entries(categoryMap).map(([name, value]) => ({ name, value }));
-
-  const dishMargins = dishes.map((d) => {
-    const cost = dishCost(d, ingredients);
-    return { name: d.name.length > 13 ? d.name.slice(0, 12) + "…" : d.name, margen: parseFloat(fmt(d.price - cost)), precio: d.price };
-  });
-
+// A diferencia de la versión anterior, esta página ya NO recibe
+// `ingredients`/`dishes` ni calcula nada localmente (dishCost, sumas,
+// top-N, agrupar por categoría): todo eso ya viene resuelto del backend
+// (vw_dashboard_resumen, vw_inventario_valorizado, vw_dashboard_distribucion_
+// categoria, vw_margen_platillos) a través de dashboard.services.ts. Este
+// componente solo dibuja lo que le llega por props.
+export function ChartsPage({
+  resumen, stockData, pieData, costData, dishMargins,
+}: {
+  resumen: ResumenDashboard;
+  stockData: { name: string; stock: number }[];
+  pieData: { name: string; value: number }[];
+  costData: { name: string; costo: number }[];
+  dishMargins: { name: string; margen: number; precio: number }[];
+}) {
   const kpis = [
-    { label: "Ingredientes",     val: ingredients.length,                                                          icon: <Package size={15} className="text-primary" /> },
-    { label: "Valor inventario", val: cs(ingredients.reduce((s, i) => s + i.costPerUnit * i.stock, 0)),            icon: <TrendingUp size={15} className="text-primary" /> },
-    { label: "Platillos",        val: dishes.length,                                                               icon: <ChefHat size={15} className="text-primary" /> },
-    { label: "Stock bajo",       val: ingredients.filter((i) => i.stock < 10).length,                             icon: <AlertTriangle size={15} className="text-amber-500" /> },
+    { label: "Ingredientes", val: resumen.totalIngredientes, icon: <Package size={15} className="text-primary" /> },
+    { label: "Valor inventario", val: cs(resumen.valorInventarioTotal), icon: <TrendingUp size={15} className="text-primary" /> },
+    { label: "Platillos", val: resumen.totalPlatillos, icon: <ChefHat size={15} className="text-primary" /> },
+    { label: "Stock bajo", val: resumen.stockBajo, icon: <AlertTriangle size={15} className="text-amber-500" /> },
   ];
 
   return (
@@ -81,10 +80,10 @@ export function ChartsPage({ ingredients, dishes }: { ingredients: Ingredient[];
 
         <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
           <p className="text-sm font-semibold text-foreground mb-0.5">Distribución por categoría</p>
-          <p className="text-xs text-muted-foreground mb-4">Unidades totales en stock</p>
+          <p className="text-xs text-muted-foreground mb-4">% del valor de inventario</p>
           <ResponsiveContainer width="100%" height={230}>
             <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" innerRadius={52} outerRadius={85} paddingAngle={3} dataKey="value">
+              <Pie data={pieData} cx="50%" cy="50%" innerRadius={52} outerRadius={85} paddingAngle={3} dataKey="value" name="Valor (C$)">
                 {pieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
               </Pie>
               <Tooltip content={<ChartTooltip />} />
