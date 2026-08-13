@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Ingredient, Dish, Page } from "./types";
 import { seedIngredients, seedDishes } from "./constants";
+import { setUnidadesCatalogo } from "./utils";
+import { listarUnidadesMedida } from "./services/catalogos.services";
 import { Sidebar } from "./components/Sidebar";
 import { LoginPage } from "./sesion/LoginPage";
 import { IngredientFormPage } from "./components/IngredientFormPage";
@@ -36,14 +38,30 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { usuario, logout } = useAuth();
 
+  // Catalogo de unidades de medida: se carga una sola vez por sesion y se
+  // cachea en utils.ts para que Ingredientes y Platillos compartan la misma
+  // logica de conversion (convertToBaseUnit / getCompatibleUnits) sin que
+  // cada modulo tenga que pedirlo por su cuenta.
+  useEffect(() => {
+    listarUnidadesMedida()
+      .then(setUnidadesCatalogo)
+      .catch(() => { /* no bloquea la app: los modulos tienen su propio fallback */ });
+  }, []);
+
   function addIngredient(data: Omit<Ingredient, "id">) {
     setIngredients((p) => [...p, { id: nextIngId++, ...data }]);
   }
   function addDish(data: Omit<Dish, "id">) {
     setDishes((p) => [...p, { id: nextDishId++, ...data }]);
   }
+  function updateIngredient(updated: Ingredient) {
+    setIngredients((p) => p.map((i) => i.id === updated.id ? updated : i));
+  }
   function updateDish(updated: Dish) {
     setDishes((p) => p.map((d) => d.id === updated.id ? updated : d));
+  }
+  function deleteIngredient(id: number) {
+    setIngredients((p) => p.filter((i) => i.id !== id));
   }
   function deleteDish(id: number) {
     setDishes((p) => p.filter((d) => d.id !== id));
@@ -95,16 +113,16 @@ function AppContent() {
       <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <div className={page === "reports" ? "flex-1 min-h-0 flex flex-col" : "flex-1 overflow-y-auto"}>
           {page === "form-ingredients" && (
-            <IngredientFormPage/> //Eliminar props: onAddIngredient={addIngredient} ingredients={ingredients} 
+            <IngredientFormPage/>
           )}
           {page === "form-dishes" && (
-            <DishFormPage/>
+            <DishFormPage />
           )}
           {page === "ingredients" && (
-            <IngredientsPageContainer />
+            <IngredientsPageContainer/>
           )}
           {page === "dishes" && (
-            <DishesPage dishes={dishes} ingredients={ingredients} onDelete={deleteDish} onUpdate={updateDish} />
+            <DishesPage />
           )}
           {page === "charts" && (
             <ChartsPage ingredients={ingredients} dishes={dishes} />

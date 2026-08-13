@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChefHat, Plus, Check, X, Loader2, AlertCircle } from "lucide-react";
 import type { DishIngredient, Ingredient } from "../types";
 import { inputCls, selectCls, labelCls, MONO } from "../styles/shared";
-import { cs, clsx, getCompatibleUnits, setUnidadesCatalogo } from "../utils";
+import { cs, clsx, convertToBaseUnit, getCompatibleUnits, setUnidadesCatalogo } from "../utils";
 import { ApiError } from "../services/apiClient";
 import { listarUnidadesMedida, type UnidadMedida } from "../services/catalogos.services";
 import {
@@ -18,40 +18,6 @@ import {
   type HistorialPlatillo,
 } from "../services/dish.services";
 
-// Factores de conversión a la unidad "ancla" de cada grupo de medida.
-// Masa -> gramos, Volumen -> mililitros. "Unidad", "Caja" y "Bolsa" son
-// unidades de conteo sin conversión (factor 1:1).
-const UNIT_TO_GRAMOS: Record<string, number> = {
-  'Gramos': 1,
-  'Kilogramos': 1000,
-  'Onzas': 28.3495,
-  'Libras': 453.592,
-};
-
-const UNIT_TO_MILILITROS: Record<string, number> = {
-  'Mililitros': 1,
-  'Litros': 1000,
-  'Onzas fluidas': 29.5735,
-  'Galon': 3785.41,
-};
-
-// Convierte `quantity` (en `fromUnit`) a la unidad base registrada del
-// ingrediente (`baseUnit`), para poder multiplicar por costPerUnit y obtener
-// el costo real de la porción usada (no el costo del ingrediente completo).
-function convertirAUnidadBase(quantity: number, fromUnit: string, baseUnit: string): number {
-  if (!fromUnit || !baseUnit || fromUnit === baseUnit) return quantity;
-
-  if (fromUnit in UNIT_TO_GRAMOS && baseUnit in UNIT_TO_GRAMOS) {
-    return (quantity * UNIT_TO_GRAMOS[fromUnit]) / UNIT_TO_GRAMOS[baseUnit];
-  }
-  if (fromUnit in UNIT_TO_MILILITROS && baseUnit in UNIT_TO_MILILITROS) {
-    return (quantity * UNIT_TO_MILILITROS[fromUnit]) / UNIT_TO_MILILITROS[baseUnit];
-  }
-
-  // Unidad / Caja / Bolsa u otro caso sin tabla de conversión: 1:1
-  return quantity;
-}
-
 const unitLabels: Record<string, string> = {
   'Gramos': 'gr - Gramos', 'Kilogramos': 'Kilogramos', 'Onzas': 'onz - Onzas',
   'Libras': 'Libras', 'Mililitros': 'ml - Mililitros', 'Litros': 'Litros',
@@ -61,7 +27,7 @@ const unitLabels: Record<string, string> = {
 
 // El backend solo da unidad_medida_id en /dishes/available-ingredients.
 // Convertimos cada fila a la forma Ingredient que ya usan utils.ts
-// (dishCost, convertirAUnidadBase, getCompatibleUnits) cruzando con el
+// (dishCost, convertToBaseUnit, getCompatibleUnits) cruzando con el
 // catalogo de unidades.
 function mapIngredienteDisponible(
   row: IngredienteDisponible,
@@ -149,6 +115,21 @@ export function DishFormPage() {
     return unidades.find((u) => u.nombre_unidad === nombre)?.id;
   }
 
+  // El backend espera la cantidad ya en la unidad BASE del ingrediente (la
+  // misma con la que se guardó su costo_unitario_actual). Convertimos aquí
+  // con convertToBaseUnit (ahora con fallback físico para peso/volumen) y
+  // siempre mandamos el unidad_id BASE del ingrediente, no el seleccionado.
+  function lineaRecetaEnUnidadBase(di: DishIngredient) {
+    const found = ingredientsForUi.find((i) => i.id === di.ingredientId);
+    if (!found) return null;
+    const cantidadBase = convertToBaseUnit(di.quantity, di.selectedUnit || found.unit, found.unit);
+    return {
+      ingrediente_id: di.ingredientId,
+      cantidad: cantidadBase,
+      unidad_id: found.unitId ?? di.unitId!,
+    };
+  }
+
   function addDishIng() {
     if (!pickIngId || !pickQty || parseFloat(pickQty) <= 0 || pickUnit === "Seleccione") return;
     const id = parseInt(pickIngId);
@@ -177,7 +158,7 @@ export function DishFormPage() {
   const dishIngCostEstimado = dishIngList.reduce((s, di) => {
     const found = ingredientsForUi.find((i) => i.id === di.ingredientId);
     if (!found) return s;
-    const quantityInBaseUnit = convertirAUnidadBase(di.quantity, di.selectedUnit || found.unit, found.unit);
+    const quantityInBaseUnit = convertToBaseUnit(di.quantity, di.selectedUnit || found.unit, found.unit);
     return s + (found.costPerUnit * quantityInBaseUnit);
   }, 0);
 
@@ -197,11 +178,9 @@ export function DishFormPage() {
     setCostLoading(true);
     setCostError(null);
 
-    const ingredientes = dishIngList.map((di) => ({
-      ingrediente_id: di.ingredientId,
-      cantidad: di.quantity,
-      unidad_id: di.unitId!,
-    }));
+    const ingredientes = dishIngList
+      .map(lineaRecetaEnUnidadBase)
+      .filter((x): x is NonNullable<typeof x> => x !== null);
 
     calcularCostoPlatillo(ingredientes)
       .then((res) => {
@@ -248,11 +227,9 @@ export function DishFormPage() {
         nombre_platillo: dishForm.name.trim(),
         categoria_id: parseInt(dishForm.categoriaId),
         precio_venta: parseFloat(dishForm.price),
-        ingredientes: dishIngList.map((di) => ({
-          ingrediente_id: di.ingredientId,
-          cantidad: di.quantity,
-          unidad_id: di.unitId!,
-        })),
+        ingredientes: dishIngList
+          .map(lineaRecetaEnUnidadBase)
+          .filter((x): x is NonNullable<typeof x> => x !== null),
       });
 
       setDishForm({ name: "", categoriaId: "", restauranteId: "", price: "" });
@@ -431,7 +408,7 @@ export function DishFormPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-semibold text-foreground" style={MONO}>
-                            {cs(found.costPerUnit * convertirAUnidadBase(di.quantity, di.selectedUnit || found.unit, found.unit))}
+                            {cs(found.costPerUnit * convertToBaseUnit(di.quantity, di.selectedUnit || found.unit, found.unit))}
                           </span>
                           <button type="button"
                             onClick={() => removeDishIng(di.ingredientId)}
