@@ -1,34 +1,62 @@
-// services/dishes.services.ts
-// Capa de SERVICES del módulo "Inventario de Platillos". Solo lógica de
-// llamadas HTTP + mapeo de la forma que devuelve el backend (columnas en
-// español, snake_case) hacia los tipos que ya usan los componentes del
-// front (types.ts). No tiene JSX ni estado de React — eso vive en las
-// páginas/hooks que consuman estas funciones.
+// services/inventarioPlatillos.services.ts
+// Capa de servicios del módulo Inventario de Platillos.
+// Traduce entre el shape que devuelve el backend (snake_case, vistas/funciones
+// de costeo_bc vía inventarioPlatillos.controller.js) y el shape que usan los
+// componentes del front. No tiene JSX ni estado de React: solo fetch + mapeo.
 //
-// Cada función acá corresponde 1:1 a una ruta de
-// inventarioPlatillos.routes.js (montadas bajo /api/dishes-inventory).
+// Columnas de fn_detalle_platillo / fn_receta_detalle_platillo confirmadas
+// con el JSON real del endpoint (no son las mismas que vw_costeo_platillos
+// usa en obtenerResumenEdicion — ver nota en esa sección más abajo).
 
 import { apiFetch } from "./apiClient";
-import type { UnidadMedida } from "./catalogos.services";
-import type { Category, Dish, DishIngredient } from "../types";
 
 const BASE = "/dishes-inventory";
 
-// ---------------------------------------------------------------------------
-// Tipos "crudos" tal como los devuelve el backend (antes de adaptarlos)
-// ---------------------------------------------------------------------------
-
+// --- Resumen (cards del encabezado) ----------------------------------------
 export type ResumenPlatillos = {
-  total_platillos: number;
-  total_categorias_platillo: number;
+  totalPlatillos: number;
+  totalCategoriasPlatillo: number;
 };
 
-export type CategoriaPlatilloRaw = {
-  categoria_id: number;
+export function obtenerResumenPlatillos(): Promise<ResumenPlatillos> {
+  return apiFetch<{ total_platillos: number; total_categorias_platillo: number }>(
+    `${BASE}/summary`
+  ).then((r) => ({
+    totalPlatillos: r.total_platillos,
+    totalCategoriasPlatillo: r.total_categorias_platillo,
+  }));
+}
+
+// --- Categorías de platillo (combo de filtro) -------------------------------
+// OJO: son categorías de PLATILLO (fn_categorias_por_restaurante), no las
+// mismas categorías de ingrediente que expone catalogos.services.
+export type CategoriaPlatillo = { id: number; nombre: string };
+
+export function listarCategoriasPlatillo(): Promise<CategoriaPlatillo[]> {
+  return apiFetch<{ categoria_id: number; categoria: string }[]>(
+    `${BASE}/categories`
+  ).then((rows) => rows.map((r) => ({ id: r.categoria_id, nombre: r.categoria })));
+}
+
+// --- Tabla principal ---------------------------------------------------------
+// costo/margen_bruto/pct_margen_costo ya vienen calculados por el backend:
+// no hay que recalcularlos en el front (a diferencia de la versión anterior
+// del módulo, que usaba dishCost() como estimado local).
+export type PlatilloResumen = {
+  id: number;
+  nombre: string;
   categoria: string;
+  costo: number;
+  precioVenta: number;
+  margenBruto: number;
+  pctMargenCosto: number;
+  /** true si está activo, false si fue dado de baja. Solo confiable cuando
+   *  se pide estado "inactivos"/"todos" — con el default "activos" siempre
+   *  viene true, así que no hace falta usarlo en ese caso. */
+  activo?: boolean;
 };
 
-export type PlatilloListadoRaw = {
+type PlatilloApi = {
   platillo_id: number;
   platillo: string;
   categoria: string;
@@ -36,231 +64,247 @@ export type PlatilloListadoRaw = {
   precio_venta: number;
   margen_bruto: number;
   pct_margen_costo: number;
+  activo?: boolean;
 };
 
-// OJO: columnas exactas de fn_detalle_platillo() no vienen en este bundle;
-// se infieren de vw_margen_platillos / fn_filtrar_platillos. Verificar
-// contra la función SQL real al conectar contra el backend vivo y ajustar
-// los nombres de campo si no calzan (los ?. de mapDetallePlatillo ya
-// contemplan que algún campo alternativo venga null/undefined).
-export type EncabezadoPlatilloRaw = {
-  platillo_id: number;
-  platillo: string;
-  categoria_id?: number;
-  categoria: string;
-  restaurante_id?: number;
-  precio_venta: number;
-  costo: number;
-  margen_bruto?: number;
-  margen_porcentaje_venta?: number;
-  pct_margen_costo?: number;
-};
-
-export type RecetaLineaRaw = {
-  ingrediente_id: number;
-  ingrediente: string;
-  cantidad_receta: number;
-  unidad_receta: string;
-  unidad_id?: number;
-  costo_subtotal: number;
-};
-
-export type DetallePlatilloRaw = {
-  encabezado: EncabezadoPlatilloRaw | null;
-  receta: RecetaLineaRaw[];
-};
-
-export type IngredienteDisponibleRaw = {
-  id: number;
-  nombre: string;
-  unidad_id: number;
-  unidad: string;
-  costo_unitario: number;
-};
-
-// Combo "unidad de medida" propio de este módulo (mismo shape que el de
-// catálogos, pero servido por /dishes-inventory/units).
-export type UnidadMedidaPlatillo = UnidadMedida;
-
-export type MargenPlatilloRaw = {
-  costo: number;
-  precio_venta: number;
-  margen_porcentaje_venta: number;
-};
-
-export type ResumenEdicionRaw = {
-  receta: RecetaLineaRaw[];
-  resumen: MargenPlatilloRaw | null;
-};
-
-// ---------------------------------------------------------------------------
-// Adaptadores: raw (backend, español/snake_case) -> tipos del front (types.ts)
-// ---------------------------------------------------------------------------
-
-export function mapCategoriaPlatillo(row: CategoriaPlatilloRaw): Category {
-  return { id: row.categoria_id, name: row.categoria };
-}
-
-export function mapPlatilloListado(row: PlatilloListadoRaw): Dish {
+function mapPlatillo(row: PlatilloApi): PlatilloResumen {
   return {
     id: row.platillo_id,
-    name: row.platillo,
-    category: row.categoria,
-    price: row.precio_venta,
-    cost: row.costo,
-    marginBruto: row.margen_bruto,
-    marginPct: row.pct_margen_costo,
-    ingredients: [], // la tabla principal no trae receta; se pide con getDetallePlatillo
+    nombre: row.platillo,
+    categoria: row.categoria,
+    costo: Number(row.costo),
+    precioVenta: Number(row.precio_venta),
+    margenBruto: Number(row.margen_bruto),
+    pctMargenCosto: Number(row.pct_margen_costo),
+    activo: row.activo,
   };
 }
 
-function mapRecetaLinea(row: RecetaLineaRaw): DishIngredient {
-  return {
-    ingredientId: row.ingrediente_id,
-    quantity: row.cantidad_receta,
-    selectedUnit: row.unidad_receta,
-    unitId: row.unidad_id,
-  };
+export type EstadoPlatillo = "activos" | "inactivos" | "todos";
+
+export async function listarPlatillos(filtros?: {
+  search?: string;
+  categoriaId?: number;
+  /** default "activos", igual que antes. Usar "inactivos" o "todos" para
+   *  poder encontrar y reactivar un platillo dado de baja. */
+  estado?: EstadoPlatillo;
+}): Promise<PlatilloResumen[]> {
+  const params = new URLSearchParams();
+  if (filtros?.search) params.set("search", filtros.search);
+  if (filtros?.categoriaId) params.set("categoria_id", String(filtros.categoriaId));
+  if (filtros?.estado) params.set("estado", filtros.estado);
+  const qs = params.toString();
+
+  const rows = await apiFetch<PlatilloApi[]>(`${BASE}${qs ? `?${qs}` : ""}`);
+  return rows.map(mapPlatillo);
 }
 
-export function mapDetallePlatillo(raw: DetallePlatilloRaw): Dish | null {
-  if (!raw.encabezado) return null;
-  const e = raw.encabezado;
-  return {
-    id: e.platillo_id,
-    name: e.platillo,
-    category: e.categoria,
-    categoryId: e.categoria_id,
-    restaurantId: e.restaurante_id,
-    price: e.precio_venta,
-    cost: e.costo,
-    marginBruto: e.margen_bruto,
-    marginPct: e.margen_porcentaje_venta ?? e.pct_margen_costo,
-    ingredients: raw.receta.map(mapRecetaLinea),
-  };
-}
-
-export type IngredienteOpcion = {
+// --- Ingredientes disponibles (combo "agregar ingrediente") -----------------
+export type IngredienteDisponible = {
   id: number;
-  name: string;
-  unit: string;
-  unitId: number;
-  costPerUnit: number;
+  nombre: string;
+  unidadId: number;
+  unidad: string;
+  costoUnitario: number;
 };
 
-export function mapIngredienteDisponible(row: IngredienteDisponibleRaw): IngredienteOpcion {
+export async function listarIngredientesDisponibles(): Promise<IngredienteDisponible[]> {
+  const rows = await apiFetch<
+    { id: number; nombre: string; unidad_id: number; unidad: string; costo_unitario: number }[]
+  >(`${BASE}/ingredient-options`);
+  return rows.map((r) => ({
+    id: r.id,
+    nombre: r.nombre,
+    unidadId: r.unidad_id,
+    unidad: r.unidad,
+    costoUnitario: Number(r.costo_unitario),
+  }));
+}
+
+// --- Unidades de medida (combo "unidad" del modal) ---------------------------
+// El backend expone /dishes-inventory/units, pero es la MISMA tabla
+// unidades_medida que ya trae catalogos.services.listarUnidadesMedida (usado
+// en el módulo de Ingredientes) — se reutiliza esa función en vez de duplicar
+// la llamada acá. Ver services/catalogos.services.ts.
+
+// --- Receta / encabezado de un platillo (botón "Ver") -----------------------
+// Confirmado con el JSON real de GET /dishes-inventory/:id y el CREATE
+// FUNCTION de fn_receta_detalle_platillo (vw_costeo_platillos). OJO: esta
+// función devuelve el costo YA EXPRESADO EN LA UNIDAD CAPTURADA en la receta
+// (costo_por_unidad_utilizada = costo_subtotal / cantidad), no el costo por
+// unidad base del ingrediente — no confundir con Ingredientes.costPerUnit.
+export type RecetaLineaDetalle = {
+  ingredienteId: number;
+  ingrediente: string;
+  categoriaIngrediente: string;
+  cantidad: number;
+  unidad: string;
+  costoPorUnidad: number;
+  costoSubtotal: number;
+};
+
+export type EncabezadoPlatillo = {
+  id: number;
+  nombre: string;
+  categoria: string;
+  categoriaId?: number;
+  numIngredientes: number;
+  precioVenta: number;
+  costo: number;
+  margenBruto: number;
+  margenPct: number;
+};
+
+export type DetallePlatillo = {
+  encabezado: EncabezadoPlatillo | null;
+  receta: RecetaLineaDetalle[];
+};
+
+function mapRecetaLineaDetalle(row: any): RecetaLineaDetalle {
   return {
-    id: row.id,
-    name: row.nombre,
-    unit: row.unidad,
-    unitId: row.unidad_id,
-    costPerUnit: row.costo_unitario,
+    ingredienteId: row.ingrediente_id,
+    ingrediente: row.ingrediente,
+    categoriaIngrediente: row.categoria_ingrediente,
+    cantidad: Number(row.cantidad),
+    unidad: row.unidad_medida,
+    costoPorUnidad: Number(row.costo_por_unidad_utilizada),
+    costoSubtotal: Number(row.costo_subtotal),
+  };
+}
+
+function mapEncabezado(row: any): EncabezadoPlatillo | null {
+  if (!row) return null;
+  return {
+    id: row.platillo_id,
+    nombre: row.nombre_platillo,
+    categoria: row.categoria,
+    categoriaId: row.categoria_id,
+    numIngredientes: Number(row.num_ingredientes),
+    precioVenta: Number(row.precio_venta),
+    costo: Number(row.costo_ingredientes),
+    margenBruto: Number(row.margen_bruto),
+    margenPct: Number(row.margen_neto_porcentaje),
+  };
+}
+
+export async function obtenerDetallePlatillo(id: number): Promise<DetallePlatillo> {
+  const data = await apiFetch<{ encabezado: any; receta: any[] }>(`${BASE}/${id}`);
+  return {
+    encabezado: mapEncabezado(data.encabezado),
+    receta: (data.receta || []).map(mapRecetaLineaDetalle),
+  };
+}
+
+// --- Mini tabla + 3 cards del modal Editar (se pide de nuevo tras cada
+//     agregar/quitar ingrediente) --------------------------------------------
+// Endpoint DISTINTO al de "Ver": obtenerResumenEdicion en el backend hace un
+// SELECT explícito sobre vw_costeo_platillos (ingrediente_id, ingrediente,
+// cantidad_receta, unidad_receta, costo_subtotal) y vw_margen_platillos
+// (costo, precio_venta, margen_porcentaje_venta) — columnas ya confirmadas
+// desde el .model.js real, no adivinadas, así que esta parte no cambia.
+export type RecetaLineaEdicion = {
+  ingredienteId: number;
+  ingrediente: string;
+  cantidad: number;
+  unidad: string;
+  costoSubtotal: number;
+};
+
+function mapRecetaLineaEdicion(row: any): RecetaLineaEdicion {
+  return {
+    ingredienteId: row.ingrediente_id,
+    ingrediente: row.ingrediente,
+    cantidad: Number(row.cantidad_receta),
+    unidad: row.unidad_receta,
+    costoSubtotal: Number(row.costo_subtotal),
   };
 }
 
 export type ResumenEdicion = {
-  receta: DishIngredient[];
-  resumen: { cost: number; price: number; marginPct: number } | null;
+  receta: RecetaLineaEdicion[];
+  resumen: { costo: number; precioVenta: number; margenPct: number } | null;
 };
 
-function mapResumenEdicion(raw: ResumenEdicionRaw): ResumenEdicion {
+function mapResumenEdicion(data: { receta: any[]; resumen: any }): ResumenEdicion {
   return {
-    receta: raw.receta.map(mapRecetaLinea),
-    resumen: raw.resumen
+    receta: (data.receta || []).map(mapRecetaLineaEdicion),
+    resumen: data.resumen
       ? {
-          cost: raw.resumen.costo,
-          price: raw.resumen.precio_venta,
-          marginPct: raw.resumen.margen_porcentaje_venta,
+          costo: Number(data.resumen.costo),
+          precioVenta: Number(data.resumen.precio_venta),
+          margenPct: Number(data.resumen.margen_porcentaje_venta),
         }
       : null,
   };
 }
 
-// ---------------------------------------------------------------------------
-// Services — un endpoint del módulo por función
-// ---------------------------------------------------------------------------
-
-// GET /dishes-inventory/summary — cards del encabezado
-export async function obtenerResumenPlatillos(): Promise<ResumenPlatillos> {
-  return apiFetch<ResumenPlatillos>(`${BASE}/summary`);
-}
-
-// GET /dishes-inventory/categories — combo de filtro
-export async function listarCategoriasPlatillos(): Promise<Category[]> {
-  const rows = await apiFetch<CategoriaPlatilloRaw[]>(`${BASE}/categories`);
-  return rows.map(mapCategoriaPlatillo);
-}
-
-// GET /dishes-inventory?search=&categoria_id= — tabla principal
-export async function listarPlatillos(params?: { search?: string; categoriaId?: number }): Promise<Dish[]> {
-  const qs = new URLSearchParams();
-  if (params?.search) qs.set("search", params.search);
-  if (params?.categoriaId) qs.set("categoria_id", String(params.categoriaId));
-  const query = qs.toString();
-  const rows = await apiFetch<PlatilloListadoRaw[]>(`${BASE}${query ? `?${query}` : ""}`);
-  return rows.map(mapPlatilloListado);
-}
-
-// GET /dishes-inventory/:id — botón "Ver" (encabezado + receta)
-export async function obtenerDetallePlatillo(id: number): Promise<Dish | null> {
-  const raw = await apiFetch<DetallePlatilloRaw>(`${BASE}/${id}`);
-  return mapDetallePlatillo(raw);
-}
-
-// GET /dishes-inventory/ingredient-options — combo "agregar ingrediente" (solo activos)
-export async function listarIngredientesDisponibles(): Promise<IngredienteOpcion[]> {
-  const rows = await apiFetch<IngredienteDisponibleRaw[]>(`${BASE}/ingredient-options`);
-  return rows.map(mapIngredienteDisponible);
-}
-
-// GET /dishes-inventory/units — combo "unidad de medida" del modal Editar
-export function listarUnidadesMedidaPlatillos(): Promise<UnidadMedidaPlatillo[]> {
-  return apiFetch<UnidadMedidaPlatillo[]>(`${BASE}/units`);
-}
-
-// POST /dishes-inventory/:id/ingredients — "Agregar ingrediente" (se guarda de inmediato)
-export async function agregarIngredienteAPlatillo(
+// --- POST /dishes-inventory/:id/ingredients ----------------------------------
+// Agrega UNA línea de receta o, si el ingrediente ya estaba, actualiza su
+// cantidad/unidad (sp_actualizar_ingrediente_platillo es upsert). Se llama
+// de inmediato al presionar "Agregar", no se acumula para el botón
+// "Guardar cambios" — eso solo maneja nombre/categoría/precio.
+export async function agregarOActualizarIngrediente(
   platilloId: number,
-  payload: { ingredienteId: number; cantidad: number; unidadId?: number }
+  datos: { ingredienteId: number; cantidad: number; unidadId?: number }
 ): Promise<ResumenEdicion> {
-  const raw = await apiFetch<ResumenEdicionRaw>(`${BASE}/${platilloId}/ingredients`, {
-    method: "POST",
-    body: {
-      ingrediente_id: payload.ingredienteId,
-      cantidad: payload.cantidad,
-      unidad_id: payload.unidadId,
-    },
-  });
-  return mapResumenEdicion(raw);
+  const data = await apiFetch<{ receta: any[]; resumen: any }>(
+    `${BASE}/${platilloId}/ingredients`,
+    {
+      method: "POST",
+      body: {
+        ingrediente_id: datos.ingredienteId,
+        cantidad: datos.cantidad,
+        unidad_id: datos.unidadId,
+      },
+    }
+  );
+  return mapResumenEdicion(data);
 }
 
-// DELETE /dishes-inventory/:id/ingredients/:ingredienteId — quitar línea de receta
-export async function quitarIngredienteDePlatillo(
+// --- DELETE /dishes-inventory/:id/ingredients/:ingredienteId -----------------
+export async function quitarIngrediente(
   platilloId: number,
   ingredienteId: number
 ): Promise<ResumenEdicion> {
-  const raw = await apiFetch<ResumenEdicionRaw>(`${BASE}/${platilloId}/ingredients/${ingredienteId}`, {
-    method: "DELETE",
-  });
-  return mapResumenEdicion(raw);
+  const data = await apiFetch<{ receta: any[]; resumen: any }>(
+    `${BASE}/${platilloId}/ingredients/${ingredienteId}`,
+    { method: "DELETE" }
+  );
+  return mapResumenEdicion(data);
 }
 
-// PUT /dishes-inventory/:id — botón "Guardar cambios" (nombre/categoría/precio)
-export function actualizarPlatillo(
+// --- PUT /dishes-inventory/:id -------------------------------------------------
+// Solo nombre / categoría / precio de venta. No toca la receta.
+export type ActualizarPlatilloPayload = {
+  nombre?: string;
+  categoriaId?: number;
+  precioVenta?: number;
+};
+
+export async function actualizarPlatillo(
   id: number,
-  payload: { nombre?: string; categoriaId?: number; precioVenta?: number }
+  cambios: ActualizarPlatilloPayload
 ): Promise<void> {
-  return apiFetch<void>(`${BASE}/${id}`, {
+  await apiFetch<void>(`${BASE}/${id}`, {
     method: "PUT",
     body: {
-      nombre_platillo: payload.nombre,
-      categoria_id: payload.categoriaId,
-      precio_venta: payload.precioVenta,
+      nombre_platillo: cambios.nombre,
+      categoria_id: cambios.categoriaId,
+      precio_venta: cambios.precioVenta,
     },
   });
 }
 
-// DELETE /dishes-inventory/:id — botón "Eliminar" (baja lógica)
-export function eliminarPlatillo(id: number): Promise<void> {
-  return apiFetch<void>(`${BASE}/${id}`, { method: "DELETE" });
+// --- DELETE /dishes-inventory/:id ----------------------------------------------
+// Baja lógica (activo=false).
+export async function eliminarPlatillo(id: number): Promise<void> {
+  await apiFetch<void>(`${BASE}/${id}`, { method: "DELETE" });
+}
+
+// --- PUT /dishes-inventory/:id/reactivate ---------------------------------------
+// NUEVO. Requiere el endpoint + sp_reactivar_platillo agregados en el backend
+// (ver inventarioPlatillos.{routes,controller,model}.js y
+// sql_sugerido_reactivar_platillo.sql).
+export async function reactivarPlatillo(id: number): Promise<void> {
+  await apiFetch<void>(`${BASE}/${id}/reactivate`, { method: "PUT" });
 }

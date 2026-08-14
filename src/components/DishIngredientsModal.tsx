@@ -1,43 +1,42 @@
 import { useEffect, useState } from "react";
-import { ChefHat, X, Loader2, AlertCircle } from "lucide-react";
+import { ChefHat, X } from "lucide-react";
 import { MONO } from "../styles/shared";
 import { fmt, cs, clsx } from "../utils";
-import { ApiError } from "../services/apiClient";
-import {
-  obtenerDetallePlatillo,
-  type PlatilloDetalle,
-} from "../services/dishesInventory.services";
+import { obtenerDetallePlatillo, type DetallePlatillo } from "../services/inventarioDishes.services";
 
+// A diferencia de la versión anterior, este modal ya no recibe `ingredients`
+// ni recalcula el costo en el front con dishCost()/convertToBaseUnit(): pide
+// el detalle real al backend (GET /dishes-inventory/:id), que ya trae el
+// costo, precio y margen calculados por las vistas de costeo.
 export function DishIngredientsModal({
-  platilloId, onClose,
+  dishId, dishName, onClose,
 }: {
-  platilloId: number;
+  dishId: number;
+  dishName: string;
   onClose: () => void;
 }) {
-  const [detalle, setDetalle] = useState<PlatilloDetalle | null>(null);
+  const [detalle, setDetalle] = useState<DetallePlatillo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelado = false;
     setLoading(true);
-    setError(null);
-    obtenerDetallePlatillo(platilloId)
-      .then((data) => { if (!cancelled) setDetalle(data); })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err instanceof ApiError ? err.message : "No se pudo cargar el detalle del platillo.");
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [platilloId]);
+    obtenerDetallePlatillo(dishId)
+      .then((d) => { if (!cancelado) setDetalle(d); })
+      .catch((err) => { if (!cancelado) setError(err?.message || "No se pudo cargar el detalle."); })
+      .finally(() => { if (!cancelado) setLoading(false); });
+    return () => { cancelado = true; };
+  }, [dishId]);
 
-  const encabezado = detalle?.encabezado ?? null;
+  const cost = detalle?.encabezado?.costo ?? 0;
+  const price = detalle?.encabezado?.precioVenta ?? 0;
+  // margenBruto/margenPct ya vienen calculados por fn_detalle_platillo — no
+  // se recalculan aquí (a diferencia de la versión anterior con datos mal
+  // mapeados, donde salían null y por eso se estimaban con price - cost).
+  const margin = detalle?.encabezado?.margenBruto ?? 0;
+  const marginPct = detalle?.encabezado?.margenPct ?? 0;
   const receta = detalle?.receta ?? [];
-  const costo = Number(encabezado?.costo ?? 0);
-  const precioVenta = Number(encabezado?.precio_venta ?? 0);
-  const margen = precioVenta - costo;
-  const marginPct = precioVenta > 0 ? (margen / precioVenta) * 100 : 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -53,9 +52,9 @@ export function DishIngredientsModal({
               <ChefHat size={16} className="text-primary" />
             </div>
             <div>
-              <p className="text-base font-semibold text-foreground">{encabezado?.platillo ?? "Cargando…"}</p>
+              <p className="text-base font-semibold text-foreground">{detalle?.encabezado?.nombre ?? dishName}</p>
               <p className="text-xs text-muted-foreground">
-                {encabezado ? `${encabezado.categoria} · ${receta.length} ingrediente${receta.length !== 1 ? "s" : ""}` : ""}
+                {detalle?.encabezado?.categoria ?? "…"} · {receta.length} ingredientes
               </p>
             </div>
           </div>
@@ -65,21 +64,10 @@ export function DishIngredientsModal({
         </div>
 
         {loading && (
-          <div className="flex-1 flex items-center justify-center py-16">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 size={16} className="animate-spin" /> Cargando detalle…
-            </div>
-          </div>
+          <div className="px-6 py-12 text-center text-sm text-muted-foreground">Cargando…</div>
         )}
-
-        {!loading && error && (
-          <div className="flex-1 flex items-center justify-center py-16 px-6">
-            <div className="max-w-sm text-center space-y-2">
-              <AlertCircle size={20} className="mx-auto text-destructive" />
-              <p className="text-sm text-foreground font-medium">No se pudo cargar</p>
-              <p className="text-xs text-muted-foreground">{error}</p>
-            </div>
-          </div>
+        {error && !loading && (
+          <div className="px-6 py-12 text-center text-sm text-destructive">{error}</div>
         )}
 
         {!loading && !error && (
@@ -87,9 +75,9 @@ export function DishIngredientsModal({
             {/* KPIs */}
             <div className="grid grid-cols-3 gap-0 border-b border-border shrink-0">
               {[
-                { label: "Precio de venta", val: cs(precioVenta), color: "text-foreground" },
-                { label: "Costo ingredientes", val: cs(costo), color: "text-foreground" },
-                { label: "Margen neto", val: `${fmt(marginPct)}%`, sub: cs(margen), color: margen >= 0 ? "text-green-600" : "text-destructive" },
+                { label: "Precio de venta", val: cs(price), color: "text-foreground" },
+                { label: "Costo ingredientes", val: cs(cost), color: "text-foreground" },
+                { label: "Margen neto", val: `${fmt(marginPct)}%`, sub: cs(margin), color: margin >= 0 ? "text-green-600" : "text-destructive" },
               ].map((k, i) => (
                 <div key={k.label} className={clsx("px-5 py-3 text-center", i < 2 && "border-r border-border")}>
                   <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">{k.label}</p>
@@ -100,10 +88,7 @@ export function DishIngredientsModal({
             </div>
 
             {/* Table */}
-            <div
-              className="flex-1 overflow-y-auto"
-              style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(200,200,200,0.3) transparent" }}
-            >
+            <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(200,200,200,0.3) transparent" }}>
               {receta.length === 0 ? (
                 <div className="px-6 py-12 text-center text-sm text-muted-foreground italic">
                   Este platillo no tiene ingredientes asignados.
@@ -112,26 +97,26 @@ export function DishIngredientsModal({
                 <table className="w-full text-sm">
                   <thead className="sticky top-0">
                     <tr className="border-b border-border bg-secondary/50">
-                      {["#", "Ingrediente", "Cantidad", "Unidad", "C$ / Unidad", "Subtotal"].map((h) => (
+                      {["#", "Ingrediente", "Categoría", "Cantidad", "Unidad", "Costo/unidad", "Subtotal"].map((h) => (
                         <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {receta.map((linea, idx) => {
-                      const cantidad = Number(linea.cantidad_receta);
-                      const subtotal = Number(linea.costo_subtotal);
-                      const costoUnitario = cantidad > 0 ? subtotal / cantidad : 0;
-                      const pct = costo > 0 ? (subtotal / costo) * 100 : 0;
+                    {receta.map((r, idx) => {
+                      const pct = cost > 0 ? (r.costoSubtotal / cost) * 100 : 0;
                       return (
-                        <tr key={linea.ingrediente_id} className="hover:bg-secondary/20 transition-colors">
+                        <tr key={r.ingredienteId} className="hover:bg-secondary/20 transition-colors">
                           <td className="px-4 py-3 text-xs text-muted-foreground" style={MONO}>{String(idx + 1).padStart(2, "0")}</td>
-                          <td className="px-4 py-3 font-medium text-foreground">{linea.ingrediente}</td>
-                          <td className="px-4 py-3" style={MONO}>{cantidad}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{linea.unidad_receta}</td>
-                          <td className="px-4 py-3" style={MONO}>{cs(costoUnitario)}</td>
+                          <td className="px-4 py-3 font-medium text-foreground">{r.ingrediente}</td>
                           <td className="px-4 py-3">
-                            <span className="font-semibold text-foreground" style={MONO}>{cs(subtotal)}</span>
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary text-secondary-foreground">{r.categoriaIngrediente}</span>
+                          </td>
+                          <td className="px-4 py-3" style={MONO}>{r.cantidad}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{r.unidad}</td>
+                          <td className="px-4 py-3 text-muted-foreground" style={MONO}>{cs(r.costoPorUnidad)}</td>
+                          <td className="px-4 py-3">
+                            <span className="font-semibold text-foreground" style={MONO}>{cs(r.costoSubtotal)}</span>
                             <span className="ml-2 text-[11px] text-muted-foreground">({fmt(pct)}%)</span>
                           </td>
                         </tr>
@@ -140,10 +125,10 @@ export function DishIngredientsModal({
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-border bg-secondary/20">
-                      <td colSpan={5} className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                      <td colSpan={6} className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-muted-foreground">
                         Total costo ingredientes
                       </td>
-                      <td className="px-4 py-3 font-bold text-foreground" style={MONO}>{cs(costo)}</td>
+                      <td className="px-4 py-3 font-bold text-foreground" style={MONO}>{cs(cost)}</td>
                     </tr>
                   </tfoot>
                 </table>

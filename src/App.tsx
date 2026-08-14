@@ -14,6 +14,7 @@ import { ReportsPage } from "./components/ReportsPage";
 import { Menu, X } from "lucide-react";
 import { AuthProvider, useAuth } from "./sesion/AuthContext";
 import { ChartsPageContainer } from "./components/ChartsPageContainer";
+import { DishesPageContainer } from "./components/DishesPageContainer";
 
 let nextIngId = seedIngredients.length + 1;
 let nextDishId = seedDishes.length + 1;
@@ -123,7 +124,7 @@ function AppContent() {
             <IngredientsPageContainer/>
           )}
           {page === "dishes" && (
-            <DishesPage />
+            <DishesPageContainer/>
           )}
           {page === "charts" && (
             <ChartsPageContainer/> //eliminar props ingredients={ingredients} dishes={dishes} 
