@@ -9,7 +9,6 @@ import {
   type PlatilloResumen,
   type CategoriaPlatillo,
   type IngredienteDisponible,
-  type EstadoPlatillo,
 } from "../services/inventarioDishes.services";
 import { listarUnidadesMedida, type UnidadMedida } from "../services/catalogos.services";
 import { DishesPage } from "./DishesPage";
@@ -18,6 +17,8 @@ import { DishEditDrawer } from "./DishEditDrawer";
 
 // Único punto de este módulo que sabe de la API. DishesPage, DishEditDrawer
 // y DishIngredientsModal siguen siendo presentacionales.
+// cada fila se resuelve inline en DishesPage para resolver la existencia de un platillo
+
 export function DishesPageContainer() {
   const [platillos, setPlatillos] = useState<PlatilloResumen[]>([]);
   const [categorias, setCategorias] = useState<CategoriaPlatillo[]>([]);
@@ -28,7 +29,6 @@ export function DishesPageContainer() {
 
   const [search, setSearch] = useState("");
   const [filterCategoriaId, setFilterCategoriaId] = useState<number | "todas">("todas");
-  const [estado, setEstado] = useState<EstadoPlatillo>("activos");
 
   const [viewingId, setViewingId] = useState<number | null>(null);
   const [editing, setEditing] = useState<{ id: number; nombre: string } | null>(null);
@@ -40,13 +40,12 @@ export function DishesPageContainer() {
       const rows = await listarPlatillos({
         search: search || undefined,
         categoriaId: filterCategoriaId === "todas" ? undefined : filterCategoriaId,
-        estado,
       });
       setPlatillos(rows);
     } catch (err: any) {
       setError(err?.message || "No se pudo cargar la lista de platillos.");
     }
-  }, [search, filterCategoriaId, estado]);
+  }, [search, filterCategoriaId]);
 
   // Carga inicial: lista + catálogos que necesitan los modales (una sola vez).
   useEffect(() => {
@@ -75,7 +74,7 @@ export function DishesPageContainer() {
   useEffect(() => {
     if (loading) return;
     cargarPlatillos();
-  }, [search, filterCategoriaId, estado]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [search, filterCategoriaId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleDelete(id: number) {
     const dish = platillos.find((p) => p.id === id);
@@ -124,8 +123,6 @@ export function DishesPageContainer() {
         setSearch={setSearch}
         filterCategoriaId={filterCategoriaId}
         setFilterCategoriaId={setFilterCategoriaId}
-        estado={estado}
-        setEstado={setEstado}
         onView={(id) => setViewingId(id)}
         onEdit={(id) => {
           const dish = platillos.find((p) => p.id === id);
@@ -169,9 +166,9 @@ export function DishesPageContainer() {
               <div>
                 <p className="text-sm font-semibold text-foreground">¿Eliminar este platillo?</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  <span className="font-medium text-foreground">{confirmingDelete.nombre}</span> se dará de baja y
-                  dejará de aparecer en la lista de platillos activos. No se borra su historial ni su receta —
-                  podrás reactivarlo después desde el filtro "Dados de baja".
+                  <span className="font-medium text-foreground">{confirmingDelete.nombre}</span> se dará de baja.
+                  No se borra su historial ni su receta — si vuelves a buscarlo por nombre, aparecerá marcado como
+                  "Inactivo" con la opción de reactivarlo.
                 </p>
               </div>
             </div>

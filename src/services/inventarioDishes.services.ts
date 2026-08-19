@@ -50,10 +50,11 @@ export type PlatilloResumen = {
   precioVenta: number;
   margenBruto: number;
   pctMargenCosto: number;
-  /** true si está activo, false si fue dado de baja. Solo confiable cuando
-   *  se pide estado "inactivos"/"todos" — con el default "activos" siempre
-   *  viene true, así que no hace falta usarlo en ese caso. */
-  activo?: boolean;
+  /** true si está activo, false si fue dado de baja. Ya no depende de un
+   *  filtro de estado: la búsqueda siempre trae activos + inactivos que
+   *  coincidan, y el front resuelve el render (tachado/badge/botón
+   *  "Activar") con este campo. */
+  activo: boolean;
 };
 
 type PlatilloApi = {
@@ -64,7 +65,7 @@ type PlatilloApi = {
   precio_venta: number;
   margen_bruto: number;
   pct_margen_costo: number;
-  activo?: boolean;
+  activo: boolean;
 };
 
 function mapPlatillo(row: PlatilloApi): PlatilloResumen {
@@ -80,19 +81,13 @@ function mapPlatillo(row: PlatilloApi): PlatilloResumen {
   };
 }
 
-export type EstadoPlatillo = "activos" | "inactivos" | "todos";
-
 export async function listarPlatillos(filtros?: {
   search?: string;
   categoriaId?: number;
-  /** default "activos", igual que antes. Usar "inactivos" o "todos" para
-   *  poder encontrar y reactivar un platillo dado de baja. */
-  estado?: EstadoPlatillo;
 }): Promise<PlatilloResumen[]> {
   const params = new URLSearchParams();
   if (filtros?.search) params.set("search", filtros.search);
   if (filtros?.categoriaId) params.set("categoria_id", String(filtros.categoriaId));
-  if (filtros?.estado) params.set("estado", filtros.estado);
   const qs = params.toString();
 
   const rows = await apiFetch<PlatilloApi[]>(`${BASE}${qs ? `?${qs}` : ""}`);

@@ -3,14 +3,18 @@ import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight, ArrowDownRightFromCircl
 import { PAGE_SIZE } from "../constants";
 import { MONO } from "../styles/shared";
 import { fmt, cs, clsx } from "../utils";
-import type { PlatilloResumen, CategoriaPlatillo, EstadoPlatillo } from "../services/inventarioDishes.services";
+import type { PlatilloResumen, CategoriaPlatillo } from "../services/inventarioDishes.services";
 
 // A diferencia de la versión anterior, ya NO recibe `ingredients` ni calcula
 // costo/margen localmente con dishCost(): costo, margenBruto y pctMargenCosto
-// ya vienen calculados por fn_filtrar_platillos en el backend.
+
+// búsqueda siempre trae activos + inactivos que coincidan con el texto, y
+// cada fila se resuelve inline según `dish.activo` — tachado + badge
+// "Inactivo" + botón "Activar" en vez de Editar/Eliminar.
+
 export function DishesPage({
   platillos, categorias, search, setSearch, filterCategoriaId, setFilterCategoriaId,
-  estado, setEstado, onView, onEdit, onDelete, onReactivate,
+  onView, onEdit, onDelete, onReactivate,
 }: {
   platillos: PlatilloResumen[];
   categorias: CategoriaPlatillo[];
@@ -18,10 +22,6 @@ export function DishesPage({
   setSearch: (v: string) => void;
   filterCategoriaId: number | "todas";
   setFilterCategoriaId: (v: number | "todas") => void;
-  /** "activos" (default), "inactivos" o "todos" — para poder buscar y
-   *  reactivar un platillo dado de baja en vez de duplicarlo. */
-  estado: EstadoPlatillo;
-  setEstado: (v: EstadoPlatillo) => void;
   onView: (id: number) => void;
   onEdit: (id: number) => void;
   onDelete: (id: number) => void;
@@ -68,16 +68,6 @@ export function DishesPage({
           <option value="todas">Todas</option>
           {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
-        <select
-          value={estado}
-          onChange={(e) => { setEstado(e.target.value as EstadoPlatillo); setPage(1); }}
-          title="Filtrar por estado (útil para reactivar un platillo dado de baja)"
-          className="bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
-        >
-          <option value="activos">Activos</option>
-          <option value="inactivos">Dados de baja</option>
-          <option value="todos">Todos</option>
-        </select>
         <span className="text-xs text-muted-foreground ml-auto">{platillos.length} resultados</span>
       </div>
 
@@ -96,13 +86,7 @@ export function DishesPage({
                 <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">Sin resultados.</td></tr>
               )}
               {paged.map((dish, idx) => {
-                // dish.activo todavía no lo manda el backend (pendiente
-                // agregar la columna a vw_margen_platillos). Mientras tanto,
-                // cuando el filtro es "inactivos" TODAS las filas que llegan
-                // son inactivas por definición del propio filtro — no hace
-                // falta el campo para saberlo. Con "todos" sí dependemos de
-                // dish.activo si en algún momento el backend lo manda.
-                const esInactivo = estado === "inactivos" || (estado === "todos" && dish.activo === false);
+                const esInactivo = dish.activo === false;
                 return (
                 <tr key={dish.id} className="hover:bg-secondary/20 transition-colors">
                   <td className="px-4 py-3 text-xs text-muted-foreground" style={MONO}>

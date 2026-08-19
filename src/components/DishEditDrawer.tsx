@@ -14,7 +14,7 @@ import {
 
 // A diferencia de la versión anterior, este drawer YA NO acumula todos los
 // cambios para un solo onSave: el backend guarda cada línea de receta al
-// vuelo (POST agrega/actualiza, DELETE quita), así que ese botón + / la X
+// vuelo (POST agrega/actualiza,   DELETE quita), así que ese botón + / la X
 // de cada fila llaman al backend de inmediato. "Guardar cambios" solo
 // aplica a nombre / categoría / precio de venta (PUT separado).
 export function DishEditDrawer({
