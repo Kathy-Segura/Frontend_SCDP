@@ -76,7 +76,7 @@ export function DishesPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/40">
-                {["#", "Platillo", "Categoría", "Precio venta", "Costo ingred.", "Margen", "Acciones"].map((h) => (
+                {["#", "Nombre del Platillo", "Categoría", "Precio venta", "Costo Unit", "M Bruto y %M/costo", "Acciones"].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>

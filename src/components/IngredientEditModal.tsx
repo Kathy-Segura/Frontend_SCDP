@@ -9,12 +9,7 @@ export function IngredientEditModal({
   ingredient, categorias, unidades, onSave, onClose,
 }: {
   ingredient: Ingredient;
-  /** Catálogo real (desde catalogos.services.listarCategoriasIngrediente). */
   categorias: Categoria[];
-  /** Catálogo real (desde catalogos.services.listarUnidadesMedida). Se filtra
-   *  a unidades del mismo tipo_medida que la unidad actual, porque
-   *  sp_actualizar_ingrediente rechaza cambios entre grupos físicos distintos
-   *  (peso <-> volumen, o cualquier tipo 'conteo'). */
   unidades: UnidadMedida[];
   onSave: (updated: Ingredient) => void;
   onClose: () => void;
@@ -97,24 +92,45 @@ export function IngredientEditModal({
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelCls}>Costo / Unidad (C$)</label>
-              <input className={inputCls} type="number" min="0" step="0.01"
-                value={form.costPerUnit} onChange={(e) => setForm({ ...form, costPerUnit: parseFloat(e.target.value) || 0 })} />
-            </div>
-            <div>
-              <label className={labelCls}>Stock</label>
-              <input className={inputCls} type="number" min="0" step="0.1"
-                value={form.stock} onChange={(e) => setForm({ ...form, stock: parseFloat(e.target.value) || 0 })} />
-            </div>
-          </div>
-          <div className="bg-secondary/40 rounded-xl p-3 flex items-center justify-between border border-border">
-            <span className="text-xs text-muted-foreground">Valor en inventario</span>
-            <span className="text-sm font-bold text-foreground" style={MONO}>{cs(form.costPerUnit * form.stock)}</span>
+         <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={labelCls}>Costo / Unidad (C$)</label>
+          <input className={inputCls} type="number" min="0" step="0.01"
+            value={Number.isNaN(form.costPerUnit) ? "" : form.costPerUnit}
+            onFocus={(e) => e.target.select()}
+            onMouseUp={(e) => e.preventDefault()}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                costPerUnit: e.target.value === "" ? NaN : parseFloat(e.target.value),
+              })
+            }
+          />
+        </div>
+          <div>
+            <label className={labelCls}>Stock</label>
+            <input className={inputCls} type="number" min="0" step="0.1"
+              value={Number.isNaN(form.stock) ? "" : form.stock}
+              onFocus={(e) => e.target.select()}
+              onMouseUp={(e) => e.preventDefault()}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  stock: e.target.value === "" ? NaN : parseFloat(e.target.value),
+                })
+              }
+            />
           </div>
         </div>
 
+      <div className="bg-secondary/40 rounded-xl p-3 flex items-center justify-between border border-border">
+        <span className="text-xs text-muted-foreground">Valor en inventario</span>
+        <span className="text-sm font-bold text-foreground" style={MONO}>
+          {cs((form.costPerUnit || 0) * (form.stock || 0))}
+        </span>
+      </div>
+        </div>
+        
         <div className="px-6 pb-5 flex gap-3">
           <button onClick={onClose}
             className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
