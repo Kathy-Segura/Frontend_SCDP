@@ -29,7 +29,14 @@ function validate(email: string, password: string): FieldErrors {
   return errors;
 }
 
-export function LoginPage() {
+type LoginPageProps = {
+  /** Se llama cuando el usuario no tiene cuenta y quiere ir a la pantalla de registro */
+  onSwitchToRegister: () => void;
+  /** Mensaje verde a mostrar (ej: "Cuenta creada, ya puedes iniciar sesion") */
+  successMessage?: string | null;
+};
+
+export function LoginPage({ onSwitchToRegister, successMessage }: LoginPageProps) {
   const { login, isLoading, error } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -77,11 +84,17 @@ export function LoginPage() {
           >
             <UtensilsCrossed size={20} color="#fff" />
           </div>
-          <h1 className="text-lg font-bold text-foreground">CDP - Centro de producción</h1>
-          <p className="text-sm text-muted-foreground mt-1">Inicia sesion para continuar</p>
+          <h1 className="text-lg font-bold text-foreground">INICIAR SESIÓN</h1>
+          <p className="text-sm text-muted-foreground mt-1">Ingresa tus credenciales para continuar</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          {successMessage && (
+            <div className="rounded-lg px-3 py-2 text-sm text-green-700 bg-green-50 border border-green-200">
+              {successMessage}
+            </div>
+          )}
+
           <div>
             <label className={labelCls}>Correo</label>
             <input
@@ -137,6 +150,18 @@ export function LoginPage() {
               Si el backend estuvo inactivo puede tardar unos segundos en responder.
             </p>
           )}
+
+          <p className="text-sm text-center text-muted-foreground">
+            ¿No tienes cuenta?{" "}
+            <button
+              type="button"
+              onClick={onSwitchToRegister}
+              className="font-semibold hover:underline"
+              style={{ color: "#E05A30" }}
+            >
+              Registrate
+            </button>
+          </p>
         </form>
       </div>
     </div>

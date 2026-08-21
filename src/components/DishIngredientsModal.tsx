@@ -77,7 +77,13 @@ export function DishIngredientsModal({
               {[
                 { label: "Precio de venta", val: cs(price), color: "text-foreground" },
                 { label: "Costo ingredientes", val: cs(cost), color: "text-foreground" },
-                { label: "Margen neto", val: `${fmt(marginPct)}%`, sub: cs(margin), color: margin >= 0 ? "text-green-600" : "text-destructive" },
+             // { label: "Margen neto", val: `${fmt(marginPct)}%`, sub: cs(margin), color: margin >= 0 ? "text-green-600" : "text-destructive" },
+                {
+                  label: "Margen bruto",
+                  val: cs(margin),
+                  sub: `${fmt(cost > 0 ? (margin / cost) * 100 : 0)}%`,
+                  color: margin >= 0 ? "text-green-600" : "text-destructive",
+                },
               ].map((k, i) => (
                 <div key={k.label} className={clsx("px-5 py-3 text-center", i < 2 && "border-r border-border")}>
                   <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">{k.label}</p>

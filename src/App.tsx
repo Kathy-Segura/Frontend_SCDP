@@ -15,6 +15,7 @@ import { Menu, X } from "lucide-react";
 import { AuthProvider, useAuth } from "./sesion/AuthContext";
 import { ChartsPageContainer } from "./components/ChartsPageContainer";
 import { DishesPageContainer } from "./components/DishesPageContainer";
+import { RegisterPage } from "./sesion/RegisterPage";
 
 let nextIngId = seedIngredients.length + 1;
 let nextDishId = seedDishes.length + 1;
@@ -29,8 +30,33 @@ export default function App() {
 
 function AppGate() {
   const { isAuthenticated } = useAuth();
-  if (!isAuthenticated) return <LoginPage />;
-  return <AppContent />;
+  const [view, setView] = useState<"login" | "register">("login");
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+
+  if (isAuthenticated) return <AppContent />;
+
+  if (view === "register") {
+    return (
+      <RegisterPage
+        onSwitchToLogin={() => setView("login")}
+        onRegistered={(email) => {
+          setRegisteredEmail(email);
+          setView("login");
+        }}
+      />
+    );
+  }
+
+  return (
+    <LoginPage
+      onSwitchToRegister={() => setView("register")}
+      successMessage={
+        registeredEmail
+          ? `Cuenta creada correctamente. Ya puedes iniciar sesion con ${registeredEmail}.`
+          : undefined
+      }
+    />
+  );
 }
 
 function AppContent() {
