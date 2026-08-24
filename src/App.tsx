@@ -8,14 +8,14 @@ import { LoginPage } from "./sesion/LoginPage";
 import { IngredientFormPage } from "./components/IngredientFormPage";
 import { DishFormPage } from "./components/DishFormPage";
 import { IngredientsPageContainer } from "./components/IngredientsPageContainer";
-import { DishesPage } from "./components/DishesPage";
-import { ChartsPage } from "./components/ChartsPage";
 import { ReportsPage } from "./components/ReportsPage";
 import { Menu, X } from "lucide-react";
 import { AuthProvider, useAuth } from "./sesion/AuthContext";
 import { ChartsPageContainer } from "./components/ChartsPageContainer";
 import { DishesPageContainer } from "./components/DishesPageContainer";
 import { RegisterPage } from "./sesion/RegisterPage";
+import { ForgotPasswordPage } from "./sesion/ForgotPasswordPage";
+import { ResetPasswordPage } from "./sesion/ResetPasswordPage";
 
 let nextIngId = seedIngredients.length + 1;
 let nextDishId = seedDishes.length + 1;
@@ -28,10 +28,21 @@ export default function App() {
   );
 }
 
+type AuthView = "login" | "register" | "forgot-password" | "reset-password";
+
 function AppGate() {
   const { isAuthenticated } = useAuth();
-  const [view, setView] = useState<"login" | "register">("login");
+  const [view, setView] = useState<AuthView>("login");
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+
+  // Si el usuario llega desde el enlace del correo (?token=...), lo mandamos
+  // directo a la pantalla de nueva contrasena, sin pasar por login.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("token")) {
+      setView("reset-password");
+    }
+  }, []);
 
   if (isAuthenticated) return <AppContent />;
 
@@ -47,9 +58,26 @@ function AppGate() {
     );
   }
 
+  if (view === "forgot-password") {
+    return <ForgotPasswordPage onSwitchToLogin={() => setView("login")} />;
+  }
+
+  if (view === "reset-password") {
+    return (
+      <ResetPasswordPage
+        onSwitchToLogin={() => {
+          // Limpia el ?token= de la URL al volver al login para que no quede pegado
+          window.history.replaceState({}, "", window.location.pathname);
+          setView("login");
+        }}
+      />
+    );
+  }
+
   return (
     <LoginPage
       onSwitchToRegister={() => setView("register")}
+      onSwitchToForgotPassword={() => setView("forgot-password")}
       successMessage={
         registeredEmail
           ? `Cuenta creada correctamente. Ya puedes iniciar sesion con ${registeredEmail}.`
@@ -66,10 +94,6 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { usuario, logout } = useAuth();
 
-  // Catalogo de unidades de medida: se carga una sola vez por sesion y se
-  // cachea en utils.ts para que Ingredientes y Platillos compartan la misma
-  // logica de conversion (convertToBaseUnit / getCompatibleUnits) sin que
-  // cada modulo tenga que pedirlo por su cuenta.
   useEffect(() => {
     listarUnidadesMedida()
       .then(setUnidadesCatalogo)
@@ -97,12 +121,10 @@ function AppContent() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background" style={{ fontFamily: "'Inter', sans-serif" }}>
-      {/* Desktop sidebar */}
       <div className="hidden md:block">
         <Sidebar page={page} setPage={setPage} onPageChange={setPage} usuario={usuario} onLogout={logout} />
       </div>
 
-      {/* Mobile menu button */}
       {!sidebarOpen && (
         <button
           onClick={() => setSidebarOpen(true)}
@@ -112,7 +134,6 @@ function AppContent() {
         </button>
       )}
 
-      {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <>
           <div className="fixed inset-y-0 left-0 z-40 md:hidden">
@@ -137,27 +158,14 @@ function AppContent() {
         </>
       )}
 
-      {/* Main content */}
       <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <div className={page === "reports" ? "flex-1 min-h-0 flex flex-col" : "flex-1 overflow-y-auto"}>
-          {page === "form-ingredients" && (
-            <IngredientFormPage/>
-          )}
-          {page === "form-dishes" && (
-            <DishFormPage />
-          )}
-          {page === "ingredients" && (
-            <IngredientsPageContainer/>
-          )}
-          {page === "dishes" && (
-            <DishesPageContainer/>
-          )}
-          {page === "charts" && (
-            <ChartsPageContainer/> //eliminar props ingredients={ingredients} dishes={dishes} 
-          )}
-          {page === "reports" && (
-            <ReportsPage ingredients={ingredients} dishes={dishes} />
-          )}
+          {page === "form-ingredients" && <IngredientFormPage />}
+          {page === "form-dishes" && <DishFormPage />}
+          {page === "ingredients" && <IngredientsPageContainer />}
+          {page === "dishes" && <DishesPageContainer />}
+          {page === "charts" && <ChartsPageContainer />}
+          {page === "reports" && <ReportsPage ingredients={ingredients} dishes={dishes} />}
         </div>
       </main>
     </div>

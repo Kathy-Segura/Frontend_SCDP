@@ -1,7 +1,6 @@
 import { useState, type FormEvent, type ChangeEvent } from "react";
-import { UtensilsCrossed, Loader2 } from "lucide-react";
+import { UtensilsCrossed, User, Mail, Lock, Eye, EyeOff, AlertTriangle, Loader2 } from "lucide-react";
 import { useAuth } from "./AuthContext";
-import { inputCls, labelCls } from "../styles/shared";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -20,32 +19,27 @@ function validate(nombre: string, email: string, password: string, confirmPasswo
   if (!trimmedNombre) {
     errors.nombre = "El nombre es obligatorio.";
   }
-
   if (!trimmedEmail) {
     errors.email = "El correo es obligatorio.";
   } else if (!EMAIL_REGEX.test(trimmedEmail)) {
-    errors.email = "Ingresa un correo con formato valido (ej: nombre@dominio.com).";
+    errors.email = "Ingresa un correo con formato válido (ej: nombre@dominio.com).";
   }
-
   if (!password) {
-    errors.password = "La contrasena es obligatoria.";
+    errors.password = "La contraseña es obligatoria.";
   } else if (password.length < 6) {
     errors.password = "Debe tener al menos 6 caracteres.";
   }
-
   if (!confirmPassword) {
-    errors.confirmPassword = "Confirma la contrasena.";
+    errors.confirmPassword = "Confirma la contraseña.";
   } else if (password && confirmPassword !== password) {
-    errors.confirmPassword = "Las contrasenas no coinciden.";
+    errors.confirmPassword = "Las contraseñas no coinciden.";
   }
 
   return errors;
 }
 
 type RegisterPageProps = {
-  /** Se llama cuando el usuario ya tiene cuenta y quiere volver al login */
   onSwitchToLogin: () => void;
-  /** Se llama cuando el registro fue exitoso, para volver al login con el email precargado */
   onRegistered: (email: string) => void;
 };
 
@@ -55,13 +49,11 @@ export function RegisterPage({ onSwitchToLogin, onRegistered }: RegisterPageProp
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState(false);
 
-  function handleChange<K extends keyof FieldErrors>(
-    key: K,
-    setter: (v: string) => void
-  ) {
+  function handleChange<K extends keyof FieldErrors>(key: K, setter: (v: string) => void) {
     return (e: ChangeEvent<HTMLInputElement>) => {
       setter(e.target.value);
       if (touched) setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
@@ -107,75 +99,95 @@ export function RegisterPage({ onSwitchToLogin, onRegistered }: RegisterPageProp
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
-            <label className={labelCls}>Nombre</label>
-            <input
-              type="text"
-              className={inputCls}
-              value={nombre}
-              onChange={handleChange("nombre", setNombre)}
-              placeholder="Tu nombre completo"
-              autoComplete="name"
-              disabled={isRegisterLoading}
-              aria-invalid={!!fieldErrors.nombre}
-            />
-            {fieldErrors.nombre && (
-              <p className="text-xs text-red-500 mt-1">{fieldErrors.nombre}</p>
-            )}
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Nombre completo
+            </label>
+            <div className="relative">
+              <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={nombre}
+                onChange={handleChange("nombre", setNombre)}
+                placeholder="Tu nombre completo"
+                autoComplete="name"
+                disabled={isRegisterLoading}
+                aria-invalid={!!fieldErrors.nombre}
+                className="w-full rounded-lg pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30 transition"
+              />
+            </div>
+            {fieldErrors.nombre && <p className="text-xs text-red-500 mt-1">{fieldErrors.nombre}</p>}
           </div>
 
           <div>
-            <label className={labelCls}>Correo</label>
-            <input
-              type="email"
-              className={inputCls}
-              value={email}
-              onChange={handleChange("email", setEmail)}
-              placeholder="tucorreo@ejemplo.com"
-              autoComplete="username"
-              disabled={isRegisterLoading}
-              aria-invalid={!!fieldErrors.email}
-            />
-            {fieldErrors.email && (
-              <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>
-            )}
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Correo electrónico
+            </label>
+            <div className="relative">
+              <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="email"
+                value={email}
+                onChange={handleChange("email", setEmail)}
+                placeholder="tucorreo@ejemplo.com"
+                autoComplete="username"
+                disabled={isRegisterLoading}
+                aria-invalid={!!fieldErrors.email}
+                className="w-full rounded-lg pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30 transition"
+              />
+            </div>
+            {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
           </div>
 
           <div>
-            <label className={labelCls}>Contrasena</label>
-            <input
-              type="password"
-              className={inputCls}
-              value={password}
-              onChange={handleChange("password", setPassword)}
-              placeholder="********"
-              autoComplete="new-password"
-              disabled={isRegisterLoading}
-              aria-invalid={!!fieldErrors.password}
-            />
-            {fieldErrors.password && (
-              <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p>
-            )}
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Contraseña
+            </label>
+            <div className="relative">
+              <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type={showPw ? "text" : "password"}
+                value={password}
+                onChange={handleChange("password", setPassword)}
+                placeholder="Mínimo 6 caracteres"
+                autoComplete="new-password"
+                disabled={isRegisterLoading}
+                aria-invalid={!!fieldErrors.password}
+                className="w-full rounded-lg pl-9 pr-10 py-2.5 text-sm text-foreground placeholder:text-muted-foreground border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30 transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw((p) => !p)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            {fieldErrors.password && <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p>}
           </div>
 
           <div>
-            <label className={labelCls}>Confirmar contrasena</label>
-            <input
-              type="password"
-              className={inputCls}
-              value={confirmPassword}
-              onChange={handleChange("confirmPassword", setConfirmPassword)}
-              placeholder="********"
-              autoComplete="new-password"
-              disabled={isRegisterLoading}
-              aria-invalid={!!fieldErrors.confirmPassword}
-            />
-            {fieldErrors.confirmPassword && (
-              <p className="text-xs text-red-500 mt-1">{fieldErrors.confirmPassword}</p>
-            )}
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Confirmar contraseña
+            </label>
+            <div className="relative">
+              <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type={showPw ? "text" : "password"}
+                value={confirmPassword}
+                onChange={handleChange("confirmPassword", setConfirmPassword)}
+                placeholder="Repite tu contraseña"
+                autoComplete="new-password"
+                disabled={isRegisterLoading}
+                aria-invalid={!!fieldErrors.confirmPassword}
+                className="w-full rounded-lg pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30 transition"
+              />
+            </div>
+            {fieldErrors.confirmPassword && <p className="text-xs text-red-500 mt-1">{fieldErrors.confirmPassword}</p>}
           </div>
 
           {registerError && (
-            <div className="rounded-lg px-3 py-2 text-sm text-red-600 bg-red-50 border border-red-200">
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2.5 bg-red-50 border border-red-200 text-red-700 text-sm">
+              <AlertTriangle size={14} className="shrink-0" />
               {registerError}
             </div>
           )}
@@ -183,8 +195,7 @@ export function RegisterPage({ onSwitchToLogin, onRegistered }: RegisterPageProp
           <button
             type="submit"
             disabled={isRegisterLoading}
-            className="w-full rounded-lg py-2.5 text-sm font-semibold text-white transition disabled:opacity-60 flex items-center justify-center gap-2"
-            style={{ background: "#E05A30" }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60"
           >
             {isRegisterLoading && <Loader2 size={16} className="animate-spin" />}
             {isRegisterLoading ? "Creando cuenta..." : "Crear cuenta"}
@@ -198,13 +209,8 @@ export function RegisterPage({ onSwitchToLogin, onRegistered }: RegisterPageProp
 
           <p className="text-sm text-center text-muted-foreground">
             ¿Ya tienes cuenta?{" "}
-            <button
-              type="button"
-              onClick={onSwitchToLogin}
-              className="font-semibold hover:underline"
-              style={{ color: "#E05A30" }}
-            >
-              Inicia sesion
+            <button type="button" onClick={onSwitchToLogin} className="text-primary font-semibold hover:underline">
+              Inicia sesión
             </button>
           </p>
         </form>

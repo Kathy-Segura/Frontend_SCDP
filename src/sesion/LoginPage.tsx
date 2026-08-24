@@ -1,7 +1,6 @@
 import { useState, type FormEvent, type ChangeEvent } from "react";
-import { UtensilsCrossed, Loader2 } from "lucide-react";
+import { UtensilsCrossed, Mail, Lock, Eye, EyeOff, AlertTriangle, Loader2 } from "lucide-react";
 import { useAuth } from "./AuthContext";
-import { inputCls, labelCls } from "../styles/shared";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -17,11 +16,11 @@ function validate(email: string, password: string): FieldErrors {
   if (!trimmedEmail) {
     errors.email = "El correo es obligatorio.";
   } else if (!EMAIL_REGEX.test(trimmedEmail)) {
-    errors.email = "Ingresa un correo con formato valido (ej: nombre@dominio.com).";
+    errors.email = "Ingresa un correo con formato válido (ej: nombre@dominio.com).";
   }
 
   if (!password) {
-    errors.password = "La contrasena es obligatoria.";
+    errors.password = "La contraseña es obligatoria.";
   } else if (password.length < 6) {
     errors.password = "Debe tener al menos 6 caracteres.";
   }
@@ -30,16 +29,16 @@ function validate(email: string, password: string): FieldErrors {
 }
 
 type LoginPageProps = {
-  /** Se llama cuando el usuario no tiene cuenta y quiere ir a la pantalla de registro */
   onSwitchToRegister: () => void;
-  /** Mensaje verde a mostrar (ej: "Cuenta creada, ya puedes iniciar sesion") */
+  onSwitchToForgotPassword: () => void;
   successMessage?: string | null;
 };
 
-export function LoginPage({ onSwitchToRegister, successMessage }: LoginPageProps) {
+export function LoginPage({ onSwitchToRegister, onSwitchToForgotPassword, successMessage }: LoginPageProps) {
   const { login, isLoading, error } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [touched, setTouched] = useState(false);
 
@@ -96,41 +95,62 @@ export function LoginPage({ onSwitchToRegister, successMessage }: LoginPageProps
           )}
 
           <div>
-            <label className={labelCls}>Correo</label>
-            <input
-              type="email"
-              className={inputCls}
-              value={email}
-              onChange={handleEmailChange}
-              placeholder="tucorreo@ejemplo.com"
-              autoComplete="username"
-              disabled={isLoading}
-              aria-invalid={!!fieldErrors.email}
-            />
-            {fieldErrors.email && (
-              <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>
-            )}
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Correo electrónico
+            </label>
+            <div className="relative">
+              <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="email"
+                value={email}
+                onChange={handleEmailChange}
+                placeholder="tucorreo@ejemplo.com"
+                autoComplete="username"
+                disabled={isLoading}
+                aria-invalid={!!fieldErrors.email}
+                className="w-full rounded-lg pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30 transition"
+              />
+            </div>
+            {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
           </div>
 
           <div>
-            <label className={labelCls}>Contrasena</label>
-            <input
-              type="password"
-              className={inputCls}
-              value={password}
-              onChange={handlePasswordChange}
-              placeholder="********"
-              autoComplete="current-password"
-              disabled={isLoading}
-              aria-invalid={!!fieldErrors.password}
-            />
-            {fieldErrors.password && (
-              <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p>
-            )}
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Contraseña</label>
+              <button
+                type="button"
+                onClick={onSwitchToForgotPassword}
+                className="text-xs text-primary hover:underline font-medium"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+            <div className="relative">
+              <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type={showPw ? "text" : "password"}
+                value={password}
+                onChange={handlePasswordChange}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                disabled={isLoading}
+                aria-invalid={!!fieldErrors.password}
+                className="w-full rounded-lg pl-9 pr-10 py-2.5 text-sm text-foreground placeholder:text-muted-foreground border border-border bg-input-background focus:outline-none focus:ring-2 focus:ring-primary/30 transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw((p) => !p)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            {fieldErrors.password && <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p>}
           </div>
 
           {error && (
-            <div className="rounded-lg px-3 py-2 text-sm text-red-600 bg-red-50 border border-red-200">
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2.5 bg-red-50 border border-red-200 text-red-700 text-sm">
+              <AlertTriangle size={14} className="shrink-0" />
               {error}
             </div>
           )}
@@ -138,11 +158,10 @@ export function LoginPage({ onSwitchToRegister, successMessage }: LoginPageProps
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-lg py-2.5 text-sm font-semibold text-white transition disabled:opacity-60 flex items-center justify-center gap-2"
-            style={{ background: "#E05A30" }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isLoading && <Loader2 size={16} className="animate-spin" />}
-            {isLoading ? "Conectando con el servidor..." : "Iniciar sesion"}
+            {isLoading ? "Conectando con el servidor..." : "Iniciar sesión"}
           </button>
 
           {isLoading && (
@@ -153,13 +172,8 @@ export function LoginPage({ onSwitchToRegister, successMessage }: LoginPageProps
 
           <p className="text-sm text-center text-muted-foreground">
             ¿No tienes cuenta?{" "}
-            <button
-              type="button"
-              onClick={onSwitchToRegister}
-              className="font-semibold hover:underline"
-              style={{ color: "#E05A30" }}
-            >
-              Registrate
+            <button type="button" onClick={onSwitchToRegister} className="text-primary font-semibold hover:underline">
+              Regístrate
             </button>
           </p>
         </form>

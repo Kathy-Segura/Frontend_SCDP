@@ -37,3 +37,28 @@ export function registerRequest(payload: RegisterPayload): Promise<Usuario> {
     skipAuth: true,
   });
 }
+
+export type ForgotPasswordPayload = {
+  email: string;
+};
+
+export function forgotPasswordRequest(email: string): Promise<void> {
+  return apiFetch<void>("/auth/forgot-password", {
+    method: "POST",
+    body: { email },
+    skipAuth: true,
+  });
+}
+
+export type ResetPasswordPayload = {
+  token: string;
+  password: string;
+};
+
+export function resetPasswordRequest(token: string, password: string): Promise<void> {
+  return apiFetch<void>("/auth/reset-password", {
+    method: "POST",
+    body: { token, password },
+    skipAuth: true,
+  });
+}
