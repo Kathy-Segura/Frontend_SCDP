@@ -6,6 +6,8 @@ import {
   listarIngredientesDisponibles,
   eliminarPlatillo,
   reactivarPlatillo,
+  descargarReportePlatillos,
+  type FormatoReporte,
   type PlatilloResumen,
   type CategoriaPlatillo,
   type IngredienteDisponible,
@@ -14,6 +16,8 @@ import { listarUnidadesMedida, type UnidadMedida } from "../services/catalogos.s
 import { DishesPage } from "./DishesPage";
 import { DishIngredientsModal } from "./DishIngredientsModal";
 import { DishEditDrawer } from "./DishEditDrawer";
+import { DishExportModal } from "./DishExportModal";
+import { listarRestaurantesPlatillo, type RestaurantePlatillo } from "../services/dish.services";
 
 // Único punto de este módulo que sabe de la API. DishesPage, DishEditDrawer
 // y DishIngredientsModal siguen siendo presentacionales.
@@ -34,6 +38,30 @@ export function DishesPageContainer() {
   const [editing, setEditing] = useState<{ id: number; nombre: string } | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<{ id: number; nombre: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Modal "Exportar": los restaurantes se piden solo la primera vez que se abre
+  // (no afecta la carga inicial de la tabla).
+  const [exportando, setExportando] = useState(false);
+  const [restaurantes, setRestaurantes] = useState<RestaurantePlatillo[] | null>(null);
+  const [restaurantesError, setRestaurantesError] = useState<string | null>(null);
+
+  function abrirExportar() {
+    setExportando(true);
+    if (restaurantes === null) {
+      setRestaurantesError(null);
+      listarRestaurantesPlatillo()
+        .then(setRestaurantes)
+        .catch((err) => setRestaurantesError(err?.message || "No se pudo cargar la lista de restaurantes."));
+    }
+  }
+
+  function descargarReporte(formato: FormatoReporte, extra: { restauranteId?: number; margenMax?: number }) {
+    return descargarReportePlatillos(formato, {
+      search: search || undefined,
+      categoriaId: filterCategoriaId === "todas" ? undefined : filterCategoriaId,
+      ...extra,
+    });
+  }
 
   const cargarPlatillos = useCallback(async () => {
     try {
@@ -130,7 +158,23 @@ export function DishesPageContainer() {
         }}
         onDelete={handleDelete}
         onReactivate={handleReactivate}
+        onExport={abrirExportar}
       />
+
+      {exportando && (
+        <DishExportModal
+          search={search}
+          categoriaNombre={
+            filterCategoriaId === "todas"
+              ? null
+              : categorias.find((c) => c.id === filterCategoriaId)?.nombre ?? null
+          }
+          restaurantes={restaurantes}
+          restaurantesError={restaurantesError}
+          onDownload={descargarReporte}
+          onClose={() => setExportando(false)}
+        />
+      )}
 
       {viewingId != null && (
         <DishIngredientsModal

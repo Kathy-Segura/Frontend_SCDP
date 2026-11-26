@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight, ArrowDownRightFromCircle } from "lucide-react";
+import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight, ArrowDownRightFromCircle, Download } from "lucide-react";
 import { PAGE_SIZE } from "../constants";
 import { MONO } from "../styles/shared";
 import { fmt, cs, clsx } from "../utils";
@@ -14,7 +14,7 @@ import type { PlatilloResumen, CategoriaPlatillo } from "../services/inventarioD
 
 export function DishesPage({
   platillos, categorias, search, setSearch, filterCategoriaId, setFilterCategoriaId,
-  onView, onEdit, onDelete, onReactivate,
+  onView, onEdit, onDelete, onReactivate, onExport,
 }: {
   platillos: PlatilloResumen[];
   categorias: CategoriaPlatillo[];
@@ -26,6 +26,8 @@ export function DishesPage({
   onEdit: (id: number) => void;
   onDelete: (id: number) => void;
   onReactivate: (id: number) => void;
+  /** Abre el modal "Exportar" (PDF / Excel) */
+  onExport: () => void;
 }) {
   const [page, setPage] = useState(1);
 
@@ -69,6 +71,10 @@ export function DishesPage({
           {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
         <span className="text-xs text-muted-foreground ml-auto">{platillos.length} resultados</span>
+        <button onClick={onExport} title="Exportar reporte en PDF o Excel"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all">
+          <Download size={14} /> Exportar
+        </button>
       </div>
 
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
