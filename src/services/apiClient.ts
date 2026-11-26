@@ -108,3 +108,49 @@ export async function apiFetch<T = unknown>(path: string, options: ApiOptions = 
 
   return (payload?.data ?? payload) as T;
 }
+
+/**
+ * Descarga un archivo (PDF, Excel, etc.) del backend y lo guarda en el equipo.
+ * Usa el mismo token y el mismo manejo de 401 que apiFetch, pero lee la
+ * respuesta como Blob en lugar de JSON. apiFetch no se modifica.
+ */
+export async function apiDownload(path: string, filename: string): Promise<void> {
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { headers });
+  } catch {
+    // Sin conexión o servidor caído/despertando (el navegador solo da "Failed to fetch")
+    throw new ApiError(0, "No se pudo conectar con el servidor. Intenta de nuevo en unos segundos.");
+  }
+
+  if (!response.ok) {
+    // Los errores del backend siguen viniendo en JSON { status, message }
+    let message = `Error ${response.status}`;
+    try {
+      const payload = await response.json();
+      if (payload?.message) message = payload.message;
+    } catch {
+      /* respuesta sin JSON: se deja el mensaje genérico */
+    }
+    if (response.status === 401) {
+      clearToken();
+      onUnauthorized?.();
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // Se libera después de que el navegador inicia la descarga
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

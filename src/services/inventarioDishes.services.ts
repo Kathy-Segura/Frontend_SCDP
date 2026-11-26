@@ -8,7 +8,7 @@
 // con el JSON real del endpoint (no son las mismas que vw_costeo_platillos
 // usa en obtenerResumenEdicion — ver nota en esa sección más abajo).
 
-import { apiFetch } from "./apiClient";
+import { apiFetch, apiDownload } from "./apiClient";
 
 const BASE = "/dishes-inventory";
 
@@ -92,6 +92,35 @@ export async function listarPlatillos(filtros?: {
 
   const rows = await apiFetch<PlatilloApi[]>(`${BASE}${qs ? `?${qs}` : ""}`);
   return rows.map(mapPlatillo);
+}
+
+// --- Reporte PDF / Excel (botón "Exportar") ----------------------------------
+// GET /dishes-inventory/report. Solo lectura en el backend; incluye solo
+// platillos activos. search y categoriaId son los mismos filtros de la tabla.
+export type FormatoReporte = "pdf" | "xlsx";
+
+export type FiltrosReportePlatillos = {
+  search?: string;
+  categoriaId?: number;
+  restauranteId?: number;
+  /** %M sobre costo máximo (ej. 150 = solo platillos con 150 % o menos) */
+  margenMax?: number;
+};
+
+export async function descargarReportePlatillos(
+  formato: FormatoReporte,
+  filtros: FiltrosReportePlatillos = {}
+): Promise<void> {
+  const params = new URLSearchParams({ formato });
+  if (filtros.search) params.set("search", filtros.search);
+  if (filtros.categoriaId) params.set("categoria_id", String(filtros.categoriaId));
+  if (filtros.restauranteId) params.set("restaurante_id", String(filtros.restauranteId));
+  if (filtros.margenMax !== undefined) params.set("margen_max", String(filtros.margenMax));
+
+  // El nombre se arma aquí: el backend lo manda en Content-Disposition, pero
+  // CORS no expone ese header al navegador.
+  const fecha = new Date().toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local
+  await apiDownload(`${BASE}/report?${params.toString()}`, `reporte-platillos-${fecha}.${formato}`);
 }
 
 // --- Ingredientes disponibles (combo "agregar ingrediente") -----------------
