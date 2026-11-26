@@ -27,10 +27,11 @@ export function obtenerResumenDashboard(): Promise<ResumenDashboard> {
     total_platillos: number;
     stock_bajo: number;
   }>(`${BASE}/summary`).then((r) => ({
-    totalIngredientes: r.total_ingredientes,
+    // pg devuelve COUNT(*) como texto ("957"): se fuerza a número
+    totalIngredientes: Number(r.total_ingredientes),
     valorInventarioTotal: Number(r.valor_inventario_total),
-    totalPlatillos: r.total_platillos,
-    stockBajo: r.stock_bajo,
+    totalPlatillos: Number(r.total_platillos),
+    stockBajo: Number(r.stock_bajo),
   }));
 }
 

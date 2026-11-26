@@ -31,8 +31,14 @@ export function IngredientsPage({
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-  const totalVal = filtered.reduce((s, i) => s + i.costPerUnit * i.stock, 0);
-  const lowStock = filtered.filter((i) => i.stock < 10).length;
+  // Las cards cuentan solo ingredientes activos (la tabla sigue mostrando los
+  // inactivos para poder reactivarlos). Misma regla que el Dashboard y la BD
+  // (vw_cards_ingredientes): stock bajo = stock actual <= stock mínimo.
+  const activosFiltrados = filtered.filter((i) => i.active !== false);
+  const totalVal = activosFiltrados.reduce((s, i) => s + i.costPerUnit * i.stock, 0);
+  const lowStock = activosFiltrados.filter((i) =>
+    i.bajoStockMinimo ?? (i.stockMinimo !== undefined && i.stock <= i.stockMinimo)
+  ).length;
   const [confirmingDelete, setConfirmingDelete] = useState<{ id: number; nombre: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -56,7 +62,7 @@ export function IngredientsPage({
         <div className="grid grid-cols-2 lg:flex gap-3">
           <div className="bg-card border border-border rounded-xl px-3 sm:px-4 py-2.5 shadow-sm text-center">
             <p className="text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground">Total registros</p>
-            <p className="text-lg sm:text-xl font-bold text-foreground mt-0.5" style={MONO}>{filtered.length}</p>
+            <p className="text-lg sm:text-xl font-bold text-foreground mt-0.5" style={MONO}>{activosFiltrados.length}</p>
           </div>
           <div className="bg-card border border-border rounded-xl px-3 sm:px-4 py-2.5 shadow-sm text-center">
             <p className="text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground">Valor inventario</p>
