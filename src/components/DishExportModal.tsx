@@ -24,18 +24,13 @@ export function DishExportModal({
   restaurantesError: string | null;
   onDownload: (
     formato: FormatoReporte,
-    extra: { restauranteId?: number; margenMax?: number; orden?: OrdenReporte; limite?: number }
+    extra: { restauranteId?: number; orden?: OrdenReporte; limite?: number }
   ) => Promise<void>;
   onClose: () => void;
 }) {
   const [restauranteId, setRestauranteId] = useState<number | "todos">("todos");
-  const [margenMax, setMargenMax] = useState("");
   const [descargando, setDescargando] = useState<FormatoReporte | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const margenTexto = margenMax.trim();
-  const margenNumero = margenTexto === "" ? undefined : Number(margenTexto);
-  const margenInvalido = margenNumero !== undefined && !Number.isFinite(margenNumero);
 
   const [orden, setOrden] = useState<OrdenReporte | "tabla">("tabla");
   const [opcionFilas, setOpcionFilas] = useState<OpcionFilas>("todas");
@@ -48,7 +43,7 @@ export function DishExportModal({
   const limiteInvalido =
     limite !== undefined && (!Number.isInteger(limite) || limite < 1 || limite > LIMITE_MAXIMO_REPORTE);
 
-  const invalido = margenInvalido || limiteInvalido;
+  const invalido = limiteInvalido;
 
   async function descargar(formato: FormatoReporte) {
     if (invalido || descargando) return;
@@ -57,7 +52,6 @@ export function DishExportModal({
     try {
       await onDownload(formato, {
         restauranteId: restauranteId === "todos" ? undefined : restauranteId,
-        margenMax: margenNumero,
         orden: orden === "tabla" ? undefined : orden,
         limite,
       });
@@ -137,28 +131,6 @@ export function DishExportModal({
             {restaurantesError && (
               <p className="text-xs text-destructive mt-1">{restaurantesError} Se exportarán todos los restaurantes.</p>
             )}
-          </div>
-
-          {/* Margen máximo */}
-          <div>
-            <label htmlFor="export-margen" className="block text-sm font-medium text-foreground mb-1.5">
-              % M/costo máximo <span className="font-normal text-muted-foreground">(opcional)</span>
-            </label>
-            <input
-              id="export-margen"
-              type="number"
-              inputMode="decimal"
-              step="any"
-              placeholder="Ej. 150"
-              value={margenMax}
-              onChange={(e) => setMargenMax(e.target.value)}
-              className={inputClass}
-            />
-            <p className={`text-xs mt-1 ${margenInvalido ? "text-destructive" : "text-muted-foreground"}`}>
-              {margenInvalido
-                ? "Ingresa un número válido."
-                : "Solo platillos con %M sobre costo menor o igual a este valor. Vacío = sin límite."}
-            </p>
           </div>
 
           {/* Orden y cantidad de filas */}
