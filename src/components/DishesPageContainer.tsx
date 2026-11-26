@@ -8,6 +8,7 @@ import {
   reactivarPlatillo,
   descargarReportePlatillos,
   type FormatoReporte,
+  type OrdenReporte,
   type PlatilloResumen,
   type CategoriaPlatillo,
   type IngredienteDisponible,
@@ -55,7 +56,7 @@ export function DishesPageContainer() {
     }
   }
 
-  function descargarReporte(formato: FormatoReporte, extra: { restauranteId?: number; margenMax?: number }) {
+  function descargarReporte(formato: FormatoReporte, extra: { restauranteId?: number; orden?: OrdenReporte; limite?: number }) {
     return descargarReportePlatillos(formato, {
       search: search || undefined,
       categoriaId: filterCategoriaId === "todas" ? undefined : filterCategoriaId,
