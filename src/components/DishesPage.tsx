@@ -44,7 +44,8 @@ export function DishesPage({
         </div>
         <div className="flex gap-3 flex-wrap">
           {[
-            { label: "Platillos", val: platillos.length },
+            // Solo activos: la tabla también lista inactivos (para reactivarlos)
+            { label: "Platillos", val: platillos.filter((p) => p.activo !== false).length },
             { label: "Categorías", val: categorias.length },
           ].map((s) => (
             <div key={s.label} className="bg-card border border-border rounded-xl px-4 py-2.5 shadow-sm text-center">

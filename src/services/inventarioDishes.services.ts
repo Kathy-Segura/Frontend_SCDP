@@ -99,12 +99,29 @@ export async function listarPlatillos(filtros?: {
 // platillos activos. search y categoriaId son los mismos filtros de la tabla.
 export type FormatoReporte = "pdf" | "xlsx";
 
+export type OrdenReporte = "nombre" | "margen_asc" | "margen_desc" | "costo_desc" | "precio_desc";
+
+export const ORDENES_REPORTE: { valor: OrdenReporte; etiqueta: string }[] = [
+  { valor: "nombre", etiqueta: "Nombre A-Z" },
+  { valor: "margen_asc", etiqueta: "Menor %M/costo (menos rentables)" },
+  { valor: "margen_desc", etiqueta: "Mayor %M/costo (más rentables)" },
+  { valor: "costo_desc", etiqueta: "Mayor costo" },
+  { valor: "precio_desc", etiqueta: "Mayor precio de venta" },
+];
+
+/** Máximo que acepta el backend para ?limite= */
+export const LIMITE_MAXIMO_REPORTE = 10000;
+
 export type FiltrosReportePlatillos = {
   search?: string;
   categoriaId?: number;
   restauranteId?: number;
   /** %M sobre costo máximo (ej. 150 = solo platillos con 150 % o menos) */
   margenMax?: number;
+  /** Sin orden = mismo orden de la tabla */
+  orden?: OrdenReporte;
+  /** Número máximo de filas (se aplica después de filtrar y ordenar) */
+  limite?: number;
 };
 
 export async function descargarReportePlatillos(
@@ -116,6 +133,8 @@ export async function descargarReportePlatillos(
   if (filtros.categoriaId) params.set("categoria_id", String(filtros.categoriaId));
   if (filtros.restauranteId) params.set("restaurante_id", String(filtros.restauranteId));
   if (filtros.margenMax !== undefined) params.set("margen_max", String(filtros.margenMax));
+  if (filtros.orden) params.set("orden", filtros.orden);
+  if (filtros.limite) params.set("limite", String(filtros.limite));
 
   // El nombre se arma aquí: el backend lo manda en Content-Disposition, pero
   // CORS no expone ese header al navegador.

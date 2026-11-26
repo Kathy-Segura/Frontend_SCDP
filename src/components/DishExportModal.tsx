@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { Download, FileSpreadsheet, FileText, Loader2, X } from "lucide-react";
-import type { FormatoReporte } from "../services/inventarioDishes.services";
+import {
+  ORDENES_REPORTE,
+  LIMITE_MAXIMO_REPORTE,
+  type FormatoReporte,
+  type OrdenReporte,
+} from "../services/inventarioDishes.services";
+
+const OPCIONES_FILAS = ["todas", "10", "25", "50", "100", "personalizado"] as const;
+type OpcionFilas = (typeof OPCIONES_FILAS)[number];
 import type { RestaurantePlatillo } from "../services/dish.services";
 
 // Modal del botón "Exportar" (presentacional). La descarga real la hace
@@ -16,7 +24,7 @@ export function DishExportModal({
   restaurantesError: string | null;
   onDownload: (
     formato: FormatoReporte,
-    extra: { restauranteId?: number; margenMax?: number }
+    extra: { restauranteId?: number; margenMax?: number; orden?: OrdenReporte; limite?: number }
   ) => Promise<void>;
   onClose: () => void;
 }) {
@@ -29,14 +37,29 @@ export function DishExportModal({
   const margenNumero = margenTexto === "" ? undefined : Number(margenTexto);
   const margenInvalido = margenNumero !== undefined && !Number.isFinite(margenNumero);
 
+  const [orden, setOrden] = useState<OrdenReporte | "tabla">("tabla");
+  const [opcionFilas, setOpcionFilas] = useState<OpcionFilas>("todas");
+  const [filasPersonalizadas, setFilasPersonalizadas] = useState("");
+
+  const limite =
+    opcionFilas === "todas" ? undefined
+    : opcionFilas === "personalizado" ? (filasPersonalizadas.trim() === "" ? NaN : Number(filasPersonalizadas))
+    : Number(opcionFilas);
+  const limiteInvalido =
+    limite !== undefined && (!Number.isInteger(limite) || limite < 1 || limite > LIMITE_MAXIMO_REPORTE);
+
+  const invalido = margenInvalido || limiteInvalido;
+
   async function descargar(formato: FormatoReporte) {
-    if (margenInvalido || descargando) return;
+    if (invalido || descargando) return;
     setError(null);
     setDescargando(formato);
     try {
       await onDownload(formato, {
         restauranteId: restauranteId === "todos" ? undefined : restauranteId,
         margenMax: margenNumero,
+        orden: orden === "tabla" ? undefined : orden,
+        limite,
       });
       onClose();
     } catch (err: any) {
@@ -61,7 +84,7 @@ export function DishExportModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="export-title"
-        className="relative bg-card rounded-2xl shadow-2xl w-full max-w-md border border-border overflow-hidden"
+        className="relative bg-card rounded-2xl shadow-2xl w-full max-w-md border border-border max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -138,18 +161,74 @@ export function DishExportModal({
             </p>
           </div>
 
+          {/* Orden y cantidad de filas */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="export-orden" className="block text-sm font-medium text-foreground mb-1.5">Ordenar por</label>
+              <select
+                id="export-orden"
+                value={orden}
+                onChange={(e) => setOrden(e.target.value as OrdenReporte | "tabla")}
+                className={`${inputClass} cursor-pointer`}
+              >
+                <option value="tabla">Como en la tabla</option>
+                {ORDENES_REPORTE.map((o) => (
+                  <option key={o.valor} value={o.valor}>{o.etiqueta}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="export-filas" className="block text-sm font-medium text-foreground mb-1.5">Cantidad de filas</label>
+              <select
+                id="export-filas"
+                value={opcionFilas}
+                onChange={(e) => setOpcionFilas(e.target.value as OpcionFilas)}
+                className={`${inputClass} cursor-pointer`}
+              >
+                <option value="todas">Todas</option>
+                <option value="10">Primeras 10</option>
+                <option value="25">Primeras 25</option>
+                <option value="50">Primeras 50</option>
+                <option value="100">Primeras 100</option>
+                <option value="personalizado">Personalizado…</option>
+              </select>
+            </div>
+          </div>
+          {opcionFilas === "personalizado" && (
+            <div>
+              <label htmlFor="export-filas-num" className="block text-sm font-medium text-foreground mb-1.5">Número de filas</label>
+              <input
+                id="export-filas-num"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={LIMITE_MAXIMO_REPORTE}
+                step={1}
+                placeholder="Ej. 30"
+                value={filasPersonalizadas}
+                onChange={(e) => setFilasPersonalizadas(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          )}
+          <p className={`text-xs -mt-2 ${limiteInvalido ? "text-destructive" : "text-muted-foreground"}`}>
+            {limiteInvalido
+              ? `Ingresa un número entero entre 1 y ${LIMITE_MAXIMO_REPORTE.toLocaleString("en-US")}.`
+              : "El límite se aplica después de filtrar y ordenar (ej. los 10 menos rentables)."}
+          </p>
+
           {error && (
             <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
           )}
         </div>
 
         <div className="px-6 pb-6 flex gap-3">
-          <button onClick={() => descargar("pdf")} disabled={!!descargando || margenInvalido}
+          <button onClick={() => descargar("pdf")} disabled={!!descargando || invalido}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-secondary active:scale-[0.98] transition-all disabled:opacity-60">
             {descargando === "pdf" ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} className="text-red-600" />}
             PDF
           </button>
-          <button onClick={() => descargar("xlsx")} disabled={!!descargando || margenInvalido}
+          <button onClick={() => descargar("xlsx")} disabled={!!descargando || invalido}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60">
             {descargando === "xlsx" ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
             Excel
