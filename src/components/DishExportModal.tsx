@@ -15,20 +15,22 @@ import type { RestaurantePlatillo } from "../services/dish.services";
 // DishesPageContainer vía onDownload; aquí solo se arman los filtros extra.
 // Búsqueda y categoría NO se eligen aquí: son los filtros que ya tiene la tabla.
 export function DishExportModal({
-  search, categoriaNombre, restaurantes, restaurantesError, onDownload, onClose,
+  search, categoriaNombre, restaurantes, restaurantesError, restauranteInicial = "todos", onDownload, onClose,
 }: {
   search: string;
   categoriaNombre: string | null;
   /** null mientras se cargan */
   restaurantes: RestaurantePlatillo[] | null;
   restaurantesError: string | null;
+  /** Restaurante elegido en el filtro de la tabla (se puede cambiar aquí) */
+  restauranteInicial?: number | "todos";
   onDownload: (
     formato: FormatoReporte,
     extra: { restauranteId?: number; orden?: OrdenReporte; limite?: number }
   ) => Promise<void>;
   onClose: () => void;
 }) {
-  const [restauranteId, setRestauranteId] = useState<number | "todos">("todos");
+  const [restauranteId, setRestauranteId] = useState<number | "todos">(restauranteInicial);
   const [descargando, setDescargando] = useState<FormatoReporte | null>(null);
   const [error, setError] = useState<string | null>(null);
 

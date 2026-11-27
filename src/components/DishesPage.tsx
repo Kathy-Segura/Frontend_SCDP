@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight, ArrowDownRightFromCircle, Download } from "lucide-react";
+import { Eye, Pencil, Trash2, ChevronLeft, ChevronRight, ArrowDownRightFromCircle, Download, FilterX } from "lucide-react";
 import { PAGE_SIZE } from "../constants";
 import { MONO } from "../styles/shared";
 import { fmt, cs, clsx } from "../utils";
 import type { PlatilloResumen, CategoriaPlatillo } from "../services/inventarioDishes.services";
+import type { RestaurantePlatillo } from "../services/dish.services";
 
 // A diferencia de la versión anterior, ya NO recibe `ingredients` ni calcula
 // costo/margen localmente con dishCost(): costo, margenBruto y pctMargenCosto
@@ -14,6 +15,7 @@ import type { PlatilloResumen, CategoriaPlatillo } from "../services/inventarioD
 
 export function DishesPage({
   platillos, categorias, search, setSearch, filterCategoriaId, setFilterCategoriaId,
+  restaurantes, filterRestauranteId, setFilterRestauranteId, onClearFilters,
   onView, onEdit, onDelete, onReactivate, onExport,
 }: {
   platillos: PlatilloResumen[];
@@ -22,6 +24,11 @@ export function DishesPage({
   setSearch: (v: string) => void;
   filterCategoriaId: number | "todas";
   setFilterCategoriaId: (v: number | "todas") => void;
+  restaurantes: RestaurantePlatillo[];
+  filterRestauranteId: number | "todos";
+  setFilterRestauranteId: (v: number | "todos") => void;
+  /** Vuelve búsqueda, categoría y restaurante a su valor inicial */
+  onClearFilters: () => void;
   onView: (id: number) => void;
   onEdit: (id: number) => void;
   onDelete: (id: number) => void;
@@ -30,6 +37,7 @@ export function DishesPage({
   onExport: () => void;
 }) {
   const [page, setPage] = useState(1);
+  const hayFiltros = search.trim() !== "" || filterCategoriaId !== "todas" || filterRestauranteId !== "todos";
 
   const totalPages = Math.max(1, Math.ceil(platillos.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -57,11 +65,12 @@ export function DishesPage({
       </div>
 
       <div className="flex gap-3 flex-wrap items-center">
+        <div className="flex gap-3 flex-wrap items-center">
         <input
           placeholder="Buscar platillo…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-52"
+          className="bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-44"
         />
         <select
           value={filterCategoriaId}
@@ -71,11 +80,30 @@ export function DishesPage({
           <option value="todas">Todas</option>
           {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
-        <span className="text-xs text-muted-foreground ml-auto">{platillos.length} resultados</span>
+        <select
+          aria-label="Filtrar por restaurante"
+          value={filterRestauranteId}
+          onChange={(e) => { setFilterRestauranteId(e.target.value === "todos" ? "todos" : Number(e.target.value)); setPage(1); }}
+          className="bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+        >
+          <option value="todos">Todos los restaurantes</option>
+          {restaurantes.map((r) => <option key={r.id} value={r.id}>{r.nombre_restaurante}</option>)}
+        </select>
+        {hayFiltros && (
+          <button onClick={() => { onClearFilters(); setPage(1); }} title="Quitar búsqueda y filtros"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <FilterX size={14} /> Limpiar filtros
+          </button>
+        )}
+        </div>
+        {/* Resultados + Exportar siempre juntos a la derecha */}
+        <div className="flex items-center gap-3 ml-auto shrink-0">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">{platillos.length} resultados</span>
         <button onClick={onExport} title="Exportar reporte en PDF o Excel"
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-[0.98] transition-all">
           <Download size={14} /> Exportar
         </button>
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
@@ -110,8 +138,8 @@ export function DishesPage({
                   <td className="px-4 py-3">
                     <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary text-secondary-foreground">{dish.categoria}</span>
                   </td>
-                  <td className="px-4 py-3 font-medium text-foreground" style={MONO}>{cs(dish.precioVenta)}</td>
-                  <td className="px-4 py-3 text-foreground" style={MONO}>{cs(dish.costo)}</td>
+                  <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap" style={MONO}>{cs(dish.precioVenta)}</td>
+                  <td className="px-4 py-3 text-foreground whitespace-nowrap" style={MONO}>{cs(dish.costo)}</td>
                   {/* M Bruto y %M/costo en columnas separadas (vw_margen_platillos ya los entrega por separado) */}
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className={clsx("text-sm font-semibold", dish.margenBruto >= 0 ? "text-green-600" : "text-destructive")} style={MONO}>
@@ -119,8 +147,8 @@ export function DishesPage({
                     </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={clsx("text-[11px] px-1.5 py-0.5 rounded font-medium",
-                      dish.pctMargenCosto > 50 ? "bg-green-100 text-green-700" : dish.pctMargenCosto > 25 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700")}>
+                    {/* Mismo tamaño y estilo que M Bruto (sin fondo/etiqueta) */}
+                    <span className={clsx("text-sm font-semibold", dish.pctMargenCosto >= 0 ? "text-green-600" : "text-destructive")} style={MONO}>
                       {fmt(dish.pctMargenCosto)}%
                     </span>
                   </td>

@@ -84,10 +84,12 @@ function mapPlatillo(row: PlatilloApi): PlatilloResumen {
 export async function listarPlatillos(filtros?: {
   search?: string;
   categoriaId?: number;
+  restauranteId?: number;
 }): Promise<PlatilloResumen[]> {
   const params = new URLSearchParams();
   if (filtros?.search) params.set("search", filtros.search);
   if (filtros?.categoriaId) params.set("categoria_id", String(filtros.categoriaId));
+  if (filtros?.restauranteId) params.set("restaurante_id", String(filtros.restauranteId));
   const qs = params.toString();
 
   const rows = await apiFetch<PlatilloApi[]>(`${BASE}${qs ? `?${qs}` : ""}`);
