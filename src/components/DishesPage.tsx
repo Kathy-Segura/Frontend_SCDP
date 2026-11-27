@@ -77,7 +77,7 @@ export function DishesPage({
           onChange={(e) => { setFilterCategoriaId(e.target.value === "todas" ? "todas" : Number(e.target.value)); setPage(1); }}
           className="bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
         >
-          <option value="todas">Todas</option>
+          <option value="todas">Todas las categorías</option>
           {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
         <select
@@ -89,12 +89,11 @@ export function DishesPage({
           <option value="todos">Todos los restaurantes</option>
           {restaurantes.map((r) => <option key={r.id} value={r.id}>{r.nombre_restaurante}</option>)}
         </select>
-        {hayFiltros && (
-          <button onClick={() => { onClearFilters(); setPage(1); }} title="Quitar búsqueda y filtros"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-            <FilterX size={14} /> Limpiar filtros
-          </button>
-        )}
+        {/* Siempre visible; deshabilitado cuando no hay filtros que quitar */}
+        <button onClick={() => { onClearFilters(); setPage(1); }} disabled={!hayFiltros} title="Quitar búsqueda y filtros"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted-foreground">
+          <FilterX size={14} /> Limpiar filtros
+        </button>
         </div>
         {/* Resultados + Exportar siempre juntos a la derecha */}
         <div className="flex items-center gap-3 ml-auto shrink-0">
