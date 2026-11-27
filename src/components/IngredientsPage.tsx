@@ -91,15 +91,15 @@ export function IngredientsPage({
           onChange={(e) => { setFilterCat(e.target.value); setPage(1); }}
           className="flex-1 sm:flex-none bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
         >
-          <option>Todas</option>
+          <option value="Todas">Todas las categorías</option>
           {ING_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
         </select>
-        {(search.trim() !== "" || filterCat !== "Todas") && (
-          <button onClick={() => { setSearch(""); setFilterCat("Todas"); setPage(1); }} title="Quitar búsqueda y filtros"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-            <FilterX size={14} /> Limpiar filtros
-          </button>
-        )}
+        {/* Siempre visible; deshabilitado cuando no hay filtros que quitar */}
+        <button onClick={() => { setSearch(""); setFilterCat("Todas"); setPage(1); }}
+          disabled={search.trim() === "" && filterCat === "Todas"} title="Quitar búsqueda y filtros"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted-foreground">
+          <FilterX size={14} /> Limpiar filtros
+        </button>
         <span className="text-xs text-muted-foreground sm:ml-auto">{filtered.length} resultados</span>
       </div>
 
