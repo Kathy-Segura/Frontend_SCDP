@@ -83,14 +83,14 @@ export function DishesPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/40">
-                {["#", "Nombre del Platillo", "Categoría", "Precio venta", "Costo Unit", "M Bruto y %M/costo", "Acciones"].map((h) => (
+                {["#", "Nombre del Platillo", "Categoría", "Precio venta", "Costo Unit", "M Bruto", "%M/costo", "Acciones"].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {paged.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">Sin resultados.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">Sin resultados.</td></tr>
               )}
               {paged.map((dish, idx) => {
                 const esInactivo = dish.activo === false;
@@ -112,16 +112,17 @@ export function DishesPage({
                   </td>
                   <td className="px-4 py-3 font-medium text-foreground" style={MONO}>{cs(dish.precioVenta)}</td>
                   <td className="px-4 py-3 text-foreground" style={MONO}>{cs(dish.costo)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className={clsx("text-sm font-semibold", dish.margenBruto >= 0 ? "text-green-600" : "text-destructive")} style={MONO}>
-                        {cs(dish.margenBruto)}
-                      </span>
-                      <span className={clsx("text-[11px] px-1.5 py-0.5 rounded font-medium",
-                        dish.pctMargenCosto > 50 ? "bg-green-100 text-green-700" : dish.pctMargenCosto > 25 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700")}>
-                        {fmt(dish.pctMargenCosto)}%
-                      </span>
-                    </div>
+                  {/* M Bruto y %M/costo en columnas separadas (vw_margen_platillos ya los entrega por separado) */}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={clsx("text-sm font-semibold", dish.margenBruto >= 0 ? "text-green-600" : "text-destructive")} style={MONO}>
+                      {cs(dish.margenBruto)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={clsx("text-[11px] px-1.5 py-0.5 rounded font-medium",
+                      dish.pctMargenCosto > 50 ? "bg-green-100 text-green-700" : dish.pctMargenCosto > 25 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700")}>
+                      {fmt(dish.pctMargenCosto)}%
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
