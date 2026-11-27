@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, Pencil, Trash2, ChevronLeft, ChevronRight, ArrowDownRightFromCircle, Loader2 } from "lucide-react";
+import { AlertTriangle, Pencil, Trash2, ChevronLeft, ChevronRight, ArrowDownRightFromCircle, Loader2, FilterX } from "lucide-react";
 import type { Ingredient } from "../types";
 import type { Categoria, UnidadMedida } from "../services/catalogos.services";
 import { ING_CATEGORIES, PAGE_SIZE } from "../constants";
@@ -94,6 +94,12 @@ export function IngredientsPage({
           <option>Todas</option>
           {ING_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
         </select>
+        {(search.trim() !== "" || filterCat !== "Todas") && (
+          <button onClick={() => { setSearch(""); setFilterCat("Todas"); setPage(1); }} title="Quitar búsqueda y filtros"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <FilterX size={14} /> Limpiar filtros
+          </button>
+        )}
         <span className="text-xs text-muted-foreground sm:ml-auto">{filtered.length} resultados</span>
       </div>
 

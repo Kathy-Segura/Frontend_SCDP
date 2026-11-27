@@ -34,26 +34,35 @@ export function DishesPageContainer() {
 
   const [search, setSearch] = useState("");
   const [filterCategoriaId, setFilterCategoriaId] = useState<number | "todas">("todas");
+  const [filterRestauranteId, setFilterRestauranteId] = useState<number | "todos">("todos");
 
   const [viewingId, setViewingId] = useState<number | null>(null);
   const [editing, setEditing] = useState<{ id: number; nombre: string } | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<{ id: number; nombre: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Modal "Exportar": los restaurantes se piden solo la primera vez que se abre
-  // (no afecta la carga inicial de la tabla).
+  // Restaurantes: filtro de la tabla y combo del modal "Exportar". Se cargan
+  // aparte de la carga inicial para que un fallo aquí no bloquee la tabla.
   const [exportando, setExportando] = useState(false);
   const [restaurantes, setRestaurantes] = useState<RestaurantePlatillo[] | null>(null);
   const [restaurantesError, setRestaurantesError] = useState<string | null>(null);
 
+  useEffect(() => {
+    let cancelado = false;
+    listarRestaurantesPlatillo()
+      .then((r) => { if (!cancelado) setRestaurantes(r); })
+      .catch((err) => { if (!cancelado) setRestaurantesError(err?.message || "No se pudo cargar la lista de restaurantes."); });
+    return () => { cancelado = true; };
+  }, []);
+
   function abrirExportar() {
     setExportando(true);
-    if (restaurantes === null) {
-      setRestaurantesError(null);
-      listarRestaurantesPlatillo()
-        .then(setRestaurantes)
-        .catch((err) => setRestaurantesError(err?.message || "No se pudo cargar la lista de restaurantes."));
-    }
+  }
+
+  function limpiarFiltros() {
+    setSearch("");
+    setFilterCategoriaId("todas");
+    setFilterRestauranteId("todos");
   }
 
   function descargarReporte(formato: FormatoReporte, extra: { restauranteId?: number; orden?: OrdenReporte; limite?: number }) {
@@ -69,12 +78,13 @@ export function DishesPageContainer() {
       const rows = await listarPlatillos({
         search: search || undefined,
         categoriaId: filterCategoriaId === "todas" ? undefined : filterCategoriaId,
+        restauranteId: filterRestauranteId === "todos" ? undefined : filterRestauranteId,
       });
       setPlatillos(rows);
     } catch (err: any) {
       setError(err?.message || "No se pudo cargar la lista de platillos.");
     }
-  }, [search, filterCategoriaId]);
+  }, [search, filterCategoriaId, filterRestauranteId]);
 
   // Carga inicial: lista + catálogos que necesitan los modales (una sola vez).
   useEffect(() => {
@@ -98,12 +108,12 @@ export function DishesPageContainer() {
     return () => { cancelado = true; };
   }, []);
 
-  // Re-consulta la tabla cuando cambia el buscador o el filtro de categoría
-  // (después de la carga inicial).
+  // Re-consulta la tabla cuando cambia el buscador o los filtros de categoría
+  // o restaurante (después de la carga inicial).
   useEffect(() => {
     if (loading) return;
     cargarPlatillos();
-  }, [search, filterCategoriaId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [search, filterCategoriaId, filterRestauranteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleDelete(id: number) {
     const dish = platillos.find((p) => p.id === id);
@@ -152,6 +162,10 @@ export function DishesPageContainer() {
         setSearch={setSearch}
         filterCategoriaId={filterCategoriaId}
         setFilterCategoriaId={setFilterCategoriaId}
+        restaurantes={restaurantes ?? []}
+        filterRestauranteId={filterRestauranteId}
+        setFilterRestauranteId={setFilterRestauranteId}
+        onClearFilters={limpiarFiltros}
         onView={(id) => setViewingId(id)}
         onEdit={(id) => {
           const dish = platillos.find((p) => p.id === id);
@@ -172,6 +186,7 @@ export function DishesPageContainer() {
           }
           restaurantes={restaurantes}
           restaurantesError={restaurantesError}
+          restauranteInicial={filterRestauranteId}
           onDownload={descargarReporte}
           onClose={() => setExportando(false)}
         />
